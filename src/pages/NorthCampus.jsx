@@ -34,6 +34,94 @@ const BUILDINGS = [
   },
 ];
 
+const PATH_NODES = {
+  A: { x: 100, y: 300 },
+  B: { x: 300, y: 300 },
+  C: { x: 500, y: 300 },
+  D: { x: 700, y: 300 },
+  E: { x: 700, y: 160 }, // near Library
+  F: { x: 250, y: 160 }, // near Science Block
+  G: { x: 250, y: 420 }, // near Admin Block
+};
+
+const PATH_EDGES = {
+  A: ["B"],
+  B: ["A", "C", "F", "G"],
+  C: ["B", "D"],
+  D: ["C", "E"],
+  E: ["D"],
+  F: ["B"],
+  G: ["B"],
+};
+
+const getPathSegments = () => {
+  const segments = [];
+
+  Object.entries(PATH_EDGES).forEach(([from, toList]) => {
+    toList.forEach((to) => {
+      const a = PATH_NODES[from];
+      const b = PATH_NODES[to];
+
+      // Avoid duplicate segments (A->B and B->A)
+      if (from < to) {
+        segments.push({
+          x1: a.x,
+          y1: a.y,
+          x2: b.x,
+          y2: b.y,
+        });
+      }
+    });
+  });
+
+  return segments;
+};
+
+const getClosestPointOnSegment = (px, py, x1, y1, x2, y2) => {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  if (dx === 0 && dy === 0) {
+    return { x: x1, y: y1 };
+  }
+
+  const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  return {
+    x: x1 + clampedT * dx,
+    y: y1 + clampedT * dy,
+  };
+};
+
+const snapToPath = (x, y) => {
+  const segments = getPathSegments();
+
+  let closestPoint = null;
+  let minDistance = Infinity;
+
+  segments.forEach((seg) => {
+    const point = getClosestPointOnSegment(
+      x,
+      y,
+      seg.x1,
+      seg.y1,
+      seg.x2,
+      seg.y2
+    );
+
+    const dist = Math.hypot(point.x - x, point.y - y);
+
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestPoint = point;
+    }
+  });
+
+  return closestPoint;
+};
+
 const NorthCampus = () => {
   const containerRef = useRef(null);
   const isDragging = useRef(false);
@@ -77,8 +165,12 @@ const NorthCampus = () => {
     const svgX = (screenX - translate.x) / scale;
     const svgY = (screenY - translate.y) / scale;
 
-    setUserLocation({ x: svgX, y: svgY });
-    setPlacingLocation(false);
+    const snappedPoint = snapToPath(svgX, svgY);
+
+    if (snappedPoint) {
+      setUserLocation(snappedPoint);
+      setPlacingLocation(false); // place once
+    }
   };
 
   const handleMouseDown = (e) => {
@@ -244,6 +336,32 @@ const NorthCampus = () => {
           <svg viewBox="0 0 1000 600">
             <rect x="0" y="280" width="1000" height="40" fill="#ccc" />
             <rect x="480" y="0" width="40" height="600" fill="#ccc" />
+
+            {/* Walkable paths */}
+            {Object.entries(PATH_EDGES).map(([from, toList]) =>
+              toList.map((to) => {
+                const fromNode = PATH_NODES[from];
+                const toNode = PATH_NODES[to];
+
+                return (
+                  <line
+                    key={`${from}-${to}`}
+                    x1={fromNode.x}
+                    y1={fromNode.y}
+                    x2={toNode.x}
+                    y2={toNode.y}
+                    stroke="#888"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                );
+              })
+            )}
+
+            {/* Path nodes (debug view) */}
+            {Object.entries(PATH_NODES).map(([key, node]) => (
+              <circle key={key} cx={node.x} cy={node.y} r="4" fill="red" />
+            ))}
 
             {BUILDINGS.map((b) => (
               <g key={b.id} onClick={() => focusBuilding(b)}>
