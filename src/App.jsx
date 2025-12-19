@@ -4,6 +4,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import NorthCampus from "./pages/NorthCampus";
 
 function App() {
   return (
@@ -32,6 +33,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/north-campus"
+          element={
+            <ProtectedRoute>
+              <NorthCampus />
             </ProtectedRoute>
           }
         />

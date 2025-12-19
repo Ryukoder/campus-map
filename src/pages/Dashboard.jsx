@@ -20,7 +20,13 @@ const Dashboard = () => {
       <div className="login-card">
         <h1 className="login-title">Select Campus</h1>
 
-        <button className="login-button">North Campus</button>
+        <button
+          className="login-button"
+          onClick={() => navigate("/north-campus")}
+        >
+          North Campus
+        </button>
+
         <button className="login-button">South Campus</button>
       </div>
     </div>
