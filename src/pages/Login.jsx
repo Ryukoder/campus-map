@@ -67,9 +67,9 @@ const Login = () => {
 
     try {
       await sendPasswordResetEmail(auth, email);
-      alert("Password reset email sent");
-    } catch (err) {
-      alert(err.message);
+      alert("If this email is registered, a password reset link will be sent.");
+    } catch {
+      alert("Something went wrong. Please try again later.");
     }
   };
 
