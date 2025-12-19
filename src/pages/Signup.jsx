@@ -1,6 +1,12 @@
 import { useState } from "react";
 import "../styles/Auth.css";
 import { Link } from "react-router-dom";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+} from "firebase/auth";
+import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -8,7 +14,9 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSignup = () => {
+  const navigate = useNavigate();
+
+  const handleSignup = async () => {
     setError("");
 
     if (!email || !password || !confirmPassword) {
@@ -30,6 +38,21 @@ const Signup = () => {
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      await sendEmailVerification(userCredential.user);
+
+      alert("Verification Email Sent, Please Verify and Login");
+      navigate("/");
+    } catch (err) {
+      setError(err.message);
     }
 
     console.log("Signup data:", { email, password });

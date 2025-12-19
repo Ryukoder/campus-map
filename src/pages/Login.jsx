@@ -1,13 +1,23 @@
 import { useState } from "react";
 import "../styles/Auth.css";
 import { Link } from "react-router-dom";
+import {
+  signInWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+} from "firebase/auth";
+import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
-  const handleLogin = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = async () => {
     if (!email || !password) {
       alert("Please fill in all fields");
       return;
@@ -18,6 +28,29 @@ const Login = () => {
       alert("Please enter a valid email address");
       return;
     }
+
+    try {
+      await setPersistence(
+        auth,
+        rememberMe ? browserLocalPersistence : browserSessionPersistence
+      );
+
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      if (!userCredential.user.emailVerified) {
+        alert("Please verify your email before logging in");
+        return;
+      }
+
+      navigate("/dashboard");
+    } catch (err) {
+      alert(err.message);
+    }
+
     console.log("Email:", email);
     console.log("Password:", password);
     console.log("Remember Me:", rememberMe);
