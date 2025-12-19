@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { sendPasswordResetEmail } from "firebase/auth";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -58,13 +59,18 @@ const Login = () => {
     alert("Login clicked (Firebase logic will come here)");
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (!email) {
       alert("Please enter your email first");
       return;
     }
 
-    alert(`Password reset link will be sent to ${email}`);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset email sent");
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
