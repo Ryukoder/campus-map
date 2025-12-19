@@ -79,3 +79,13 @@
   font-size: 13px;
   margin-bottom: 10px;
 }
+
+.signup-text a {
+  color: #000;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signup-text a:hover {
+  text-decoration: underline;
+}

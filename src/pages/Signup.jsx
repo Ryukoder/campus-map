@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "../styles/Auth.css";
+import { Link } from "react-router-dom";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -71,7 +72,7 @@ const Signup = () => {
         </button>
 
         <p className="signup-text">
-          Already have an account? <span>Login</span>
+          Already have an account? <Link to="/">Login</Link>
         </p>
       </div>
     </div>
