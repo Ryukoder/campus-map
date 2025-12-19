@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import "../styles/Map.css";
+import { useEffect } from "react";
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 600;
@@ -149,6 +150,7 @@ const NorthCampus = () => {
   const containerRef = useRef(null);
   const isDragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const DEFAULT_EVENT_DURATION_MIN = 60;
 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [scale, setScale] = useState(1);
@@ -160,6 +162,7 @@ const NorthCampus = () => {
   const [placingLocation, setPlacingLocation] = useState(false);
   const [route, setRoute] = useState(null);
   const [showBuildingModal, setShowBuildingModal] = useState(false);
+  const [hoveredBuilding, setHoveredBuilding] = useState(null);
 
   const [events, setEvents] = useState({});
   const [showEventForm, setShowEventForm] = useState(false);
@@ -168,10 +171,117 @@ const NorthCampus = () => {
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [eventColor, setEventColor] = useState("#1e90ff");
+  const [editingEvent, setEditingEvent] = useState(null);
 
   const ZOOM_STEP = 0.2;
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 3;
+
+  const handleDeleteEvent = (buildingId, eventId) => {
+    setEvents((prev) => {
+      const updatedEvents = (prev[buildingId] || []).filter(
+        (e) => e.id !== eventId
+      );
+
+      // If no events left for this building, remove the key
+      if (updatedEvents.length === 0) {
+        const { [buildingId]: _, ...rest } = prev;
+        return rest;
+      }
+
+      return {
+        ...prev,
+        [buildingId]: updatedEvents,
+      };
+    });
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      setEvents((prev) => {
+        const updated = {};
+
+        Object.entries(prev).forEach(([buildingId, evts]) => {
+          const activeEvents = evts.filter((e) => e.endTime > now);
+
+          if (activeEvents.length > 0) {
+            updated[buildingId] = activeEvents;
+          }
+        });
+
+        return updated;
+      });
+    }, 30 * 1000); // check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      setEvents((prev) => {
+        const updated = {};
+
+        Object.entries(prev).forEach(([buildingId, evts]) => {
+          const newEvents = evts.map((e) => {
+            const reminderTime = e.startTime - 1 * 60 * 1000;
+
+            if (
+              !e.reminded &&
+              now >= reminderTime &&
+              now < e.startTime &&
+              Notification.permission === "granted"
+            ) {
+              new Notification("⏰ Upcoming Event", {
+                body: `${e.title} starts in 1 minutes`,
+              });
+
+              return { ...e, reminded: true };
+            }
+
+            return e;
+          });
+
+          updated[buildingId] = newEvents;
+        });
+
+        return updated;
+      });
+    }, 30 * 1000); // check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const getBuildingFill = (buildingId, defaultColor, events) => {
+    const buildingEvents = events[buildingId] || [];
+
+    if (buildingEvents.length === 0) {
+      return defaultColor;
+    }
+
+    if (buildingEvents.length === 1) {
+      return buildingEvents[0].color;
+    }
+
+    // Multiple events → gradient
+    const colors = buildingEvents.map((e) => e.color);
+    const step = 100 / colors.length;
+
+    const gradientStops = colors
+      .map((color, index) => `${color} ${index * step}% ${(index + 1) * step}%`)
+      .join(", ");
+
+    return `url(#grad-${buildingId})`;
+  };
 
   const handleAddEvent = () => {
     if (!eventTitle || !eventDate || !eventTime) {
@@ -179,13 +289,19 @@ const NorthCampus = () => {
       return;
     }
 
+    const startTimestamp = new Date(`${eventDate}T${eventTime}`).getTime();
+
+    const endTimestamp =
+      startTimestamp + DEFAULT_EVENT_DURATION_MIN * 60 * 1000;
+
     const newEvent = {
       id: Date.now().toString(),
       title: eventTitle,
-      date: eventDate,
-      time: eventTime,
-      color: eventColor,
       buildingId: selectedBuilding.id,
+      startTime: startTimestamp,
+      endTime: endTimestamp,
+      color: eventColor,
+      reminded: false,
     };
 
     setEvents((prev) => ({
@@ -193,12 +309,10 @@ const NorthCampus = () => {
       [selectedBuilding.id]: [...(prev[selectedBuilding.id] || []), newEvent],
     }));
 
-    // Reset form
     setEventTitle("");
     setEventDate("");
     setEventTime("");
     setEventColor("#1e90ff");
-    setShowEventForm(false);
   };
 
   const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
@@ -608,6 +722,37 @@ const NorthCampus = () => {
               </g>
             )}
 
+            <defs>
+              {Object.entries(events).map(([buildingId, evts]) => {
+                if (evts.length <= 1) return null;
+
+                const step = 100 / evts.length;
+
+                return (
+                  <linearGradient
+                    key={buildingId}
+                    id={`grad-${buildingId}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    {evts.map((e, i) => (
+                      <stop
+                        key={i}
+                        offset={`${i * step}%`}
+                        stopColor={e.color}
+                      />
+                    ))}
+                    <stop
+                      offset="100%"
+                      stopColor={evts[evts.length - 1].color}
+                    />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+
             {/* Buildings */}
             {BUILDINGS.map((b) => (
               <g
@@ -616,16 +761,19 @@ const NorthCampus = () => {
                 style={{
                   pointerEvents: placingLocation ? "none" : "auto",
                 }}
+                onMouseEnter={() => setHoveredBuilding(b)}
+                onMouseLeave={() => setHoveredBuilding(null)}
               >
                 <rect
                   x={b.x}
                   y={b.y}
                   width={b.width}
                   height={b.height}
-                  fill={b.color}
-                  stroke={selectedBuilding?.id === b.id ? "#000" : "none"}
-                  strokeWidth="3"
+                  fill={getBuildingFill(b.id, b.color, events)}
+                  stroke={events[b.id]?.length ? "#333" : "none"}
+                  strokeWidth="2"
                 />
+
                 <text
                   x={b.x + b.width / 2}
                   y={b.y + b.height / 2}
@@ -639,6 +787,31 @@ const NorthCampus = () => {
                 </text>
               </g>
             ))}
+
+            {hoveredBuilding && (
+              <g>
+                <rect
+                  x={hoveredBuilding.x}
+                  y={hoveredBuilding.y - 32}
+                  rx="6"
+                  ry="6"
+                  width="160"
+                  height="28"
+                  fill="#333"
+                  opacity="0.9"
+                />
+                <text
+                  x={hoveredBuilding.x + 8}
+                  y={hoveredBuilding.y - 12}
+                  fill="white"
+                  fontSize="12"
+                >
+                  {events[hoveredBuilding.id]?.length
+                    ? `${events[hoveredBuilding.id].length} upcoming events`
+                    : "No upcoming events"}
+                </text>
+              </g>
+            )}
 
             {/* User location marker */}
             {campusMode && userLocation && (
@@ -737,9 +910,50 @@ const NorthCampus = () => {
                       className="event-item"
                       style={{ borderLeft: `6px solid ${evt.color}` }}
                     >
-                      <strong>{evt.title}</strong>
-                      <div className="event-meta">
-                        {evt.date} • {evt.time}
+                      <div className="event-row">
+                        <div>
+                          <strong>{evt.title}</strong>
+                          <div className="event-meta">
+                            {new Date(evt.startTime).toLocaleDateString()} •{" "}
+                            {new Date(evt.startTime).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="event-actions">
+                          <button
+                            className="edit-event-btn"
+                            onClick={() => {
+                              setEditingEvent(evt);
+                              setEventTitle(evt.title);
+                              setEventDate(
+                                new Date(evt.startTime)
+                                  .toISOString()
+                                  .split("T")[0]
+                              );
+                              setEventTime(
+                                new Date(evt.startTime)
+                                  .toTimeString()
+                                  .slice(0, 5)
+                              );
+                              setEventColor(evt.color);
+                              setShowEventModal(true);
+                            }}
+                          >
+                            ✏️
+                          </button>
+
+                          <button
+                            className="delete-event-btn"
+                            onClick={() =>
+                              handleDeleteEvent(selectedBuilding.id, evt.id)
+                            }
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -748,7 +962,10 @@ const NorthCampus = () => {
 
               <button
                 className="add-event-btn"
-                onClick={() => setShowEventModal(true)}
+                onClick={() => {
+                  setEditingEvent(null); // add mode
+                  setShowEventModal(true);
+                }}
               >
                 ➕ Add Event
               </button>
@@ -803,11 +1020,62 @@ const NorthCampus = () => {
                       <button
                         className="save-btn"
                         onClick={() => {
-                          handleAddEvent();
-                          setShowEventModal(false); // 👈 auto close
+                          if (!eventTitle || !eventDate || !eventTime) {
+                            alert("Please fill all fields");
+                            return;
+                          }
+
+                          const startTime = new Date(
+                            `${eventDate}T${eventTime}`
+                          ).getTime();
+
+                          const endTime =
+                            startTime + DEFAULT_EVENT_DURATION_MIN * 60 * 1000;
+
+                          setEvents((prev) => {
+                            const list = prev[selectedBuilding.id] || [];
+
+                            // ✏️ EDIT MODE
+                            if (editingEvent) {
+                              return {
+                                ...prev,
+                                [selectedBuilding.id]: list.map((e) =>
+                                  e.id === editingEvent.id
+                                    ? {
+                                        ...e,
+                                        title: eventTitle,
+                                        startTime,
+                                        endTime,
+                                        color: eventColor,
+                                        reminded: false, // reset reminder
+                                      }
+                                    : e
+                                ),
+                              };
+                            }
+
+                            // ➕ ADD MODE
+                            return {
+                              ...prev,
+                              [selectedBuilding.id]: [
+                                ...list,
+                                {
+                                  id: Date.now().toString(),
+                                  title: eventTitle,
+                                  startTime,
+                                  endTime,
+                                  color: eventColor,
+                                  reminded: false,
+                                },
+                              ],
+                            };
+                          });
+
+                          setEditingEvent(null);
+                          setShowEventModal(false);
                         }}
                       >
-                        Save Event
+                        {editingEvent ? "Update Event" : "Save Event"}
                       </button>
                     </div>
                   </div>
