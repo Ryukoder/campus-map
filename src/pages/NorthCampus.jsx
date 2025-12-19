@@ -45,6 +45,10 @@ const NorthCampus = () => {
   const [isDraggingUI, setIsDraggingUI] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [campusMode, setCampusMode] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [placingLocation, setPlacingLocation] = useState(false);
+
   const ZOOM_STEP = 0.2;
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 3;
@@ -60,6 +64,21 @@ const NorthCampus = () => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
     setSelectedBuilding(null);
+  };
+
+  const setLocationFromClick = (e) => {
+    if (!campusMode || !placingLocation || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    const svgX = (screenX - translate.x) / scale;
+    const svgY = (screenY - translate.y) / scale;
+
+    setUserLocation({ x: svgX, y: svgY });
+    setPlacingLocation(false);
   };
 
   const handleMouseDown = (e) => {
@@ -158,6 +177,7 @@ const NorthCampus = () => {
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
         style={{ cursor: isDraggingUI ? "grabbing" : "grab" }}
+        onClick={setLocationFromClick}
       >
         <div className="search-bar">
           <div className="search-input-wrapper">
@@ -190,6 +210,22 @@ const NorthCampus = () => {
               )}
             </div>
           )}
+        </div>
+
+        <div className="location-toggle">
+          <label>
+            <input
+              type="checkbox"
+              checked={campusMode}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                setCampusMode(enabled);
+                setUserLocation(null);
+                setPlacingLocation(enabled);
+              }}
+            />
+            I am on campus
+          </label>
         </div>
 
         <div className="zoom-controls">
@@ -232,6 +268,16 @@ const NorthCampus = () => {
                 </text>
               </g>
             ))}
+            {campusMode && userLocation && (
+              <circle
+                cx={userLocation.x}
+                cy={userLocation.y}
+                r="8"
+                fill="#1e90ff"
+                stroke="white"
+                strokeWidth="3"
+              />
+            )}
           </svg>
         </div>
 
