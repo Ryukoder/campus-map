@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import "../styles/Map.css";
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 600;
@@ -13,6 +12,7 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#8ecae6",
+    pathNode: "F", // nearest path node
   },
   {
     id: "library",
@@ -22,6 +22,7 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#ffb703",
+    pathNode: "E",
   },
   {
     id: "admin",
@@ -31,6 +32,7 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#90dbb4",
+    pathNode: "G",
   },
 ];
 
@@ -39,9 +41,9 @@ const PATH_NODES = {
   B: { x: 300, y: 300 },
   C: { x: 500, y: 300 },
   D: { x: 700, y: 300 },
-  E: { x: 700, y: 160 }, // near Library
-  F: { x: 250, y: 160 }, // near Science Block
-  G: { x: 250, y: 420 }, // near Admin Block
+  E: { x: 700, y: 160 },
+  F: { x: 250, y: 160 },
+  G: { x: 250, y: 420 },
 };
 
 const PATH_EDGES = {
@@ -56,48 +58,29 @@ const PATH_EDGES = {
 
 const getPathSegments = () => {
   const segments = [];
-
   Object.entries(PATH_EDGES).forEach(([from, toList]) => {
     toList.forEach((to) => {
       const a = PATH_NODES[from];
       const b = PATH_NODES[to];
-
-      // Avoid duplicate segments (A->B and B->A)
       if (from < to) {
-        segments.push({
-          x1: a.x,
-          y1: a.y,
-          x2: b.x,
-          y2: b.y,
-        });
+        segments.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
       }
     });
   });
-
   return segments;
 };
 
 const getClosestPointOnSegment = (px, py, x1, y1, x2, y2) => {
   const dx = x2 - x1;
   const dy = y2 - y1;
-
-  if (dx === 0 && dy === 0) {
-    return { x: x1, y: y1 };
-  }
-
+  if (dx === 0 && dy === 0) return { x: x1, y: y1 };
   const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
-
   const clampedT = Math.max(0, Math.min(1, t));
-
-  return {
-    x: x1 + clampedT * dx,
-    y: y1 + clampedT * dy,
-  };
+  return { x: x1 + clampedT * dx, y: y1 + clampedT * dy };
 };
 
 const snapToPath = (x, y) => {
   const segments = getPathSegments();
-
   let closestPoint = null;
   let minDistance = Infinity;
 
@@ -110,9 +93,7 @@ const snapToPath = (x, y) => {
       seg.x2,
       seg.y2
     );
-
     const dist = Math.hypot(point.x - x, point.y - y);
-
     if (dist < minDistance) {
       minDistance = dist;
       closestPoint = point;
@@ -120,6 +101,49 @@ const snapToPath = (x, y) => {
   });
 
   return closestPoint;
+};
+
+// Find closest path node to a point
+const getClosestPathNode = (x, y) => {
+  let closestNode = null;
+  let minDist = Infinity;
+
+  Object.entries(PATH_NODES).forEach(([key, node]) => {
+    const dist = Math.hypot(node.x - x, node.y - y);
+    if (dist < minDist) {
+      minDist = dist;
+      closestNode = key;
+    }
+  });
+
+  return closestNode;
+};
+
+// BFS pathfinding algorithm
+const findPath = (startNode, endNode) => {
+  if (startNode === endNode) return [startNode];
+
+  const queue = [[startNode]];
+  const visited = new Set([startNode]);
+
+  while (queue.length > 0) {
+    const path = queue.shift();
+    const node = path[path.length - 1];
+
+    if (node === endNode) {
+      return path;
+    }
+
+    const neighbors = PATH_EDGES[node] || [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push([...path, neighbor]);
+      }
+    }
+  }
+
+  return null; // No path found
 };
 
 const NorthCampus = () => {
@@ -132,10 +156,10 @@ const NorthCampus = () => {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDraggingUI, setIsDraggingUI] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
   const [campusMode, setCampusMode] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [placingLocation, setPlacingLocation] = useState(false);
+  const [route, setRoute] = useState(null); // Store the calculated route
 
   const ZOOM_STEP = 0.2;
   const MIN_ZOOM = 0.5;
@@ -152,16 +176,38 @@ const NorthCampus = () => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
     setSelectedBuilding(null);
+    setRoute(null);
+  };
+
+  const calculateRoute = (building) => {
+    if (!userLocation) return;
+
+    // Find closest node to user location
+    const startNode = getClosestPathNode(userLocation.x, userLocation.y);
+    // Get the building's designated path node
+    const endNode = building.pathNode;
+
+    // Calculate path
+    const pathNodes = findPath(startNode, endNode);
+
+    if (pathNodes) {
+      // Convert node keys to coordinates
+      const pathCoordinates = [
+        userLocation, // Start from user's exact location
+        ...pathNodes.map((nodeKey) => PATH_NODES[nodeKey]),
+      ];
+      setRoute(pathCoordinates);
+    } else {
+      setRoute(null);
+    }
   };
 
   const setLocationFromClick = (e) => {
     if (!campusMode || !placingLocation || !containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
-
     const svgX = (screenX - translate.x) / scale;
     const svgY = (screenY - translate.y) / scale;
 
@@ -169,11 +215,20 @@ const NorthCampus = () => {
 
     if (snappedPoint) {
       setUserLocation(snappedPoint);
-      setPlacingLocation(false); // place once
+      setPlacingLocation(false);
+      setRoute(null); // Clear any existing route
     }
   };
 
   const handleMouseDown = (e) => {
+    // Don't start dragging if clicking on UI elements
+    if (
+      e.target.closest(
+        ".search-bar, .location-toggle, .zoom-controls, .info-panel"
+      )
+    ) {
+      return;
+    }
     isDragging.current = true;
     setIsDraggingUI(true);
     lastPos.current = { x: e.clientX, y: e.clientY };
@@ -189,7 +244,6 @@ const NorthCampus = () => {
     setTranslate((prev) => {
       const scaledW = MAP_WIDTH * scale;
       const scaledH = MAP_HEIGHT * scale;
-
       const minX = Math.min(0, rect.width - scaledW);
       const minY = Math.min(0, rect.height - scaledH);
 
@@ -214,21 +268,16 @@ const NorthCampus = () => {
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
 
     setScale((prev) => {
       const next = Math.min(Math.max(prev + delta, MIN_ZOOM), MAX_ZOOM);
-
       const pointX = (mouseX - translate.x) / prev;
       const pointY = (mouseY - translate.y) / prev;
-
       const newX = mouseX - pointX * next;
       const newY = mouseY - pointY * next;
-
       const scaledW = MAP_WIDTH * next;
       const scaledH = MAP_HEIGHT * next;
-
       const minX = Math.min(0, rect.width - scaledW);
       const minY = Math.min(0, rect.height - scaledH);
 
@@ -241,11 +290,12 @@ const NorthCampus = () => {
     });
   };
 
-  const focusBuilding = (b) => {
+  const zoomToBuilding = (b) => {
     if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
 
+    const rect = containerRef.current.getBoundingClientRect();
     const targetScale = 2;
+
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
 
@@ -254,58 +304,138 @@ const NorthCampus = () => {
       x: rect.width / 2 - cx * targetScale,
       y: rect.height / 2 - cy * targetScale,
     });
+  };
 
+  const focusBuilding = (b) => {
     setSelectedBuilding(b);
+
+    // 🚫 If navigating, do NOT zoom
+    if (campusMode && userLocation) {
+      calculateRoute(b);
+      return;
+    }
+
+    // ✅ Only zoom when just browsing
+    zoomToBuilding(b);
   };
 
   return (
-    <div className="map-page">
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
       <div
         ref={containerRef}
-        className="map-container"
+        style={{
+          flex: 1,
+          position: "relative",
+          overflow: "hidden",
+          cursor: isDraggingUI ? "grabbing" : "grab",
+          backgroundColor: "#f5f5f5",
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        style={{ cursor: isDraggingUI ? "grabbing" : "grab" }}
         onClick={setLocationFromClick}
       >
-        <div className="search-bar">
-          <div className="search-input-wrapper">
-            <span className="search-icon">🔍</span>
+        {/* Search Bar */}
+        <div
+          className="search-bar"
+          style={{
+            position: "absolute",
+            top: 20,
+            left: 20,
+            zIndex: 10,
+            backgroundColor: "white",
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            width: 300,
+          }}
+        >
+          <div
+            style={{
+              padding: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span>🔍</span>
             <input
               type="text"
               placeholder="Search buildings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                fontSize: 14,
+              }}
             />
           </div>
-
           {searchQuery && (
-            <div className="search-results">
+            <div style={{ borderTop: "1px solid #eee" }}>
               {filteredBuildings.length > 0 ? (
                 filteredBuildings.map((b) => (
                   <div
                     key={b.id}
-                    className="search-item"
                     onClick={() => {
                       focusBuilding(b);
                       setSearchQuery("");
                     }}
+                    style={{
+                      padding: 10,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      borderBottom: "1px solid #eee",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.target.style.backgroundColor = "#f5f5f5")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.backgroundColor = "white")
+                    }
                   >
                     {b.name}
                   </div>
                 ))
               ) : (
-                <div className="search-item disabled">No results</div>
+                <div style={{ padding: 10, color: "#999", fontSize: 14 }}>
+                  No results
+                </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="location-toggle">
-          <label>
+        {/* Location Toggle */}
+        <div
+          className="location-toggle"
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            zIndex: 10,
+            backgroundColor: "white",
+            padding: 12,
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={campusMode}
@@ -314,26 +444,93 @@ const NorthCampus = () => {
                 setCampusMode(enabled);
                 setUserLocation(null);
                 setPlacingLocation(enabled);
+                setRoute(null);
               }}
             />
-            I am on campus
+            <span style={{ fontSize: 14 }}>I am on campus</span>
           </label>
+          {placingLocation && (
+            <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#666" }}>
+              Click on a path to set your location
+            </p>
+          )}
         </div>
 
-        <div className="zoom-controls">
-          <button onClick={zoomIn}>+</button>
-          <button onClick={zoomOut}>−</button>
-          <button onClick={resetView}>⟳</button>
-        </div>
-
+        {/* Zoom Controls */}
         <div
-          className="map-transform"
+          className="zoom-controls"
           style={{
-            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transition: isDraggingUI ? "none" : "transform 0.1s ease",
+            position: "absolute",
+            bottom: 20,
+            right: 20,
+            zIndex: 10,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          <svg viewBox="0 0 1000 600">
+          <button
+            onClick={zoomIn}
+            style={{
+              width: 40,
+              height: 40,
+              border: "none",
+              backgroundColor: "white",
+              borderRadius: 8,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              cursor: "pointer",
+              fontSize: 20,
+            }}
+          >
+            +
+          </button>
+          <button
+            onClick={zoomOut}
+            style={{
+              width: 40,
+              height: 40,
+              border: "none",
+              backgroundColor: "white",
+              borderRadius: 8,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              cursor: "pointer",
+              fontSize: 20,
+            }}
+          >
+            −
+          </button>
+          <button
+            onClick={resetView}
+            style={{
+              width: 40,
+              height: 40,
+              border: "none",
+              backgroundColor: "white",
+              borderRadius: 8,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              cursor: "pointer",
+              fontSize: 20,
+            }}
+          >
+            ⟳
+          </button>
+        </div>
+
+        {/* Map */}
+        <div
+          style={{
+            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+            transformOrigin: "0 0",
+            transition: isDraggingUI ? "none" : "transform 0.1s ease",
+            width: MAP_WIDTH,
+            height: MAP_HEIGHT,
+          }}
+        >
+          <svg
+            viewBox="0 0 1000 600"
+            style={{ width: "100%", height: "100%", display: "block" }}
+          >
+            {/* Roads */}
             <rect x="0" y="280" width="1000" height="40" fill="#ccc" />
             <rect x="480" y="0" width="40" height="600" fill="#ccc" />
 
@@ -342,7 +539,6 @@ const NorthCampus = () => {
               toList.map((to) => {
                 const fromNode = PATH_NODES[from];
                 const toNode = PATH_NODES[to];
-
                 return (
                   <line
                     key={`${from}-${to}`}
@@ -358,13 +554,37 @@ const NorthCampus = () => {
               })
             )}
 
-            {/* Path nodes (debug view) */}
-            {Object.entries(PATH_NODES).map(([key, node]) => (
-              <circle key={key} cx={node.x} cy={node.y} r="4" fill="red" />
-            ))}
+            {/* Route visualization */}
+            {route && route.length > 1 && (
+              <g>
+                {route.slice(0, -1).map((point, i) => {
+                  const nextPoint = route[i + 1];
+                  return (
+                    <line
+                      key={`route-${i}`}
+                      x1={point.x}
+                      y1={point.y}
+                      x2={nextPoint.x}
+                      y2={nextPoint.y}
+                      stroke="#1e90ff"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      opacity="0.8"
+                    />
+                  );
+                })}
+              </g>
+            )}
 
+            {/* Buildings */}
             {BUILDINGS.map((b) => (
-              <g key={b.id} onClick={() => focusBuilding(b)}>
+              <g
+                key={b.id}
+                onClick={() => focusBuilding(b)}
+                style={{
+                  pointerEvents: placingLocation ? "none" : "auto",
+                }}
+              >
                 <rect
                   x={b.x}
                   y={b.y}
@@ -381,35 +601,120 @@ const NorthCampus = () => {
                   dominantBaseline="middle"
                   pointerEvents="none"
                   fontWeight="bold"
+                  fontSize="16"
                 >
                   {b.name}
                 </text>
               </g>
             ))}
+
+            {/* User location marker */}
             {campusMode && userLocation && (
+              <g>
+                <circle
+                  cx={userLocation.x}
+                  cy={userLocation.y}
+                  r="12"
+                  fill="#1e90ff"
+                  stroke="white"
+                  strokeWidth="3"
+                />
+                <circle
+                  cx={userLocation.x}
+                  cy={userLocation.y}
+                  r="4"
+                  fill="white"
+                />
+              </g>
+            )}
+
+            {/* Destination marker */}
+            {route && route.length > 0 && (
               <circle
-                cx={userLocation.x}
-                cy={userLocation.y}
-                r="8"
-                fill="#1e90ff"
+                cx={route[route.length - 1].x}
+                cy={route[route.length - 1].y}
+                r="10"
+                fill="red"
                 stroke="white"
-                strokeWidth="3"
+                strokeWidth="2"
               />
             )}
           </svg>
         </div>
 
-        <div className="zoom-info">Zoom: {Math.round(scale * 100)}%</div>
+        {/* Zoom Info */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 20,
+            backgroundColor: "white",
+            padding: "8px 12px",
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            fontSize: 14,
+          }}
+        >
+          Zoom: {Math.round(scale * 100)}%
+        </div>
       </div>
 
-      <div className="info-panel">
+      {/* Info Panel */}
+      <div
+        style={{
+          width: 300,
+          padding: 20,
+          backgroundColor: "white",
+          borderLeft: "1px solid #ddd",
+          overflowY: "auto",
+        }}
+      >
         {selectedBuilding ? (
           <>
-            <h2>{selectedBuilding.name}</h2>
+            <h2 style={{ marginTop: 0 }}>{selectedBuilding.name}</h2>
             <p>Building information will appear here.</p>
+            {route && (
+              <div
+                style={{
+                  marginTop: 20,
+                  padding: 12,
+                  backgroundColor: "#e3f2fd",
+                  borderRadius: 8,
+                  border: "1px solid #1e90ff",
+                }}
+              >
+                <h3 style={{ margin: "0 0 8px 0", fontSize: 16 }}>
+                  📍 Route Found
+                </h3>
+                <p style={{ margin: 0, fontSize: 14 }}>
+                  Path has {route.length - 1} segments
+                </p>
+              </div>
+            )}
           </>
         ) : (
-          <p>Click a building to see details</p>
+          <>
+            <h2 style={{ marginTop: 0 }}>North Campus Map</h2>
+            <p>Click a building to see details and get directions</p>
+            <div
+              style={{
+                marginTop: 20,
+                padding: 12,
+                backgroundColor: "#f5f5f5",
+                borderRadius: 8,
+                fontSize: 14,
+              }}
+            >
+              <p>
+                <strong>How to use:</strong>
+              </p>
+              <ul style={{ paddingLeft: 20, margin: "8px 0" }}>
+                <li>Enable "I am on campus"</li>
+                <li>Click on a path to set your location</li>
+                <li>Click any building to get directions</li>
+              </ul>
+            </div>
+          </>
         )}
       </div>
     </div>
