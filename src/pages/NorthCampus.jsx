@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import "../styles/Map.css";
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 600;
@@ -160,6 +161,7 @@ const NorthCampus = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [placingLocation, setPlacingLocation] = useState(false);
   const [route, setRoute] = useState(null); // Store the calculated route
+  const [showBuildingModal, setShowBuildingModal] = useState(false);
 
   const ZOOM_STEP = 0.2;
   const MIN_ZOOM = 0.5;
@@ -314,6 +316,12 @@ const NorthCampus = () => {
       calculateRoute(b);
       return;
     }
+
+    if (!(campusMode && userLocation)) {
+      // optional zoom later if you want
+    }
+
+    setShowBuildingModal(true); // 👈 OPEN POPUP
 
     // ✅ Only zoom when just browsing
     zoomToBuilding(b);
@@ -660,63 +668,49 @@ const NorthCampus = () => {
       </div>
 
       {/* Info Panel */}
-      <div
-        style={{
-          width: 300,
-          padding: 20,
-          backgroundColor: "white",
-          borderLeft: "1px solid #ddd",
-          overflowY: "auto",
-        }}
-      >
-        {selectedBuilding ? (
-          <>
-            <h2 style={{ marginTop: 0 }}>{selectedBuilding.name}</h2>
-            <p>Building information will appear here.</p>
-            {route && (
-              <div
-                style={{
-                  marginTop: 20,
-                  padding: 12,
-                  backgroundColor: "#e3f2fd",
-                  borderRadius: 8,
-                  border: "1px solid #1e90ff",
-                }}
+
+      {showBuildingModal && selectedBuilding && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowBuildingModal(false)}
+        >
+          <div
+            className="modal-fullscreen"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="modal-header">
+              <h1>{selectedBuilding.name}</h1>
+              <button
+                className="modal-close"
+                onClick={() => setShowBuildingModal(false)}
               >
-                <h3 style={{ margin: "0 0 8px 0", fontSize: 16 }}>
-                  📍 Route Found
-                </h3>
-                <p style={{ margin: 0, fontSize: 14 }}>
-                  Path has {route.length - 1} segments
-                </p>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <h2 style={{ marginTop: 0 }}>North Campus Map</h2>
-            <p>Click a building to see details and get directions</p>
-            <div
-              style={{
-                marginTop: 20,
-                padding: 12,
-                backgroundColor: "#f5f5f5",
-                borderRadius: 8,
-                fontSize: 14,
-              }}
-            >
-              <p>
-                <strong>How to use:</strong>
+                ✕
+              </button>
+            </header>
+
+            <section className="modal-hero">
+              <img
+                src="https://via.placeholder.com/800x400?text=Building+Image"
+                alt={selectedBuilding.name}
+              />
+            </section>
+
+            <section className="modal-content">
+              <p className="modal-description">
+                This is the {selectedBuilding.name}. Detailed information about
+                this building will appear here.
               </p>
-              <ul style={{ paddingLeft: 20, margin: "8px 0" }}>
-                <li>Enable "I am on campus"</li>
-                <li>Click on a path to set your location</li>
-                <li>Click any building to get directions</li>
-              </ul>
-            </div>
-          </>
-        )}
-      </div>
+
+              <div className="modal-events">
+                <h3>📅 Events</h3>
+                <p className="empty-events">No events added yet.</p>
+              </div>
+
+              <button className="add-event-btn">➕ Add Event</button>
+            </section>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
