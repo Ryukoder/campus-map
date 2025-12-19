@@ -13,7 +13,7 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#8ecae6",
-    pathNode: "F", // nearest path node
+    pathNode: "F",
   },
   {
     id: "library",
@@ -104,7 +104,6 @@ const snapToPath = (x, y) => {
   return closestPoint;
 };
 
-// Find closest path node to a point
 const getClosestPathNode = (x, y) => {
   let closestNode = null;
   let minDist = Infinity;
@@ -120,7 +119,6 @@ const getClosestPathNode = (x, y) => {
   return closestNode;
 };
 
-// BFS pathfinding algorithm
 const findPath = (startNode, endNode) => {
   if (startNode === endNode) return [startNode];
 
@@ -144,7 +142,7 @@ const findPath = (startNode, endNode) => {
     }
   }
 
-  return null; // No path found
+  return null;
 };
 
 const NorthCampus = () => {
@@ -160,12 +158,48 @@ const NorthCampus = () => {
   const [campusMode, setCampusMode] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [placingLocation, setPlacingLocation] = useState(false);
-  const [route, setRoute] = useState(null); // Store the calculated route
+  const [route, setRoute] = useState(null);
   const [showBuildingModal, setShowBuildingModal] = useState(false);
+
+  const [events, setEvents] = useState({});
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [eventColor, setEventColor] = useState("#1e90ff");
 
   const ZOOM_STEP = 0.2;
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 3;
+
+  const handleAddEvent = () => {
+    if (!eventTitle || !eventDate || !eventTime) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    const newEvent = {
+      id: Date.now().toString(),
+      title: eventTitle,
+      date: eventDate,
+      time: eventTime,
+      color: eventColor,
+      buildingId: selectedBuilding.id,
+    };
+
+    setEvents((prev) => ({
+      ...prev,
+      [selectedBuilding.id]: [...(prev[selectedBuilding.id] || []), newEvent],
+    }));
+
+    // Reset form
+    setEventTitle("");
+    setEventDate("");
+    setEventTime("");
+    setEventColor("#1e90ff");
+    setShowEventForm(false);
+  };
 
   const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
   const zoomOut = () => setScale((p) => Math.max(p - ZOOM_STEP, MIN_ZOOM));
@@ -184,18 +218,15 @@ const NorthCampus = () => {
   const calculateRoute = (building) => {
     if (!userLocation) return;
 
-    // Find closest node to user location
     const startNode = getClosestPathNode(userLocation.x, userLocation.y);
-    // Get the building's designated path node
+
     const endNode = building.pathNode;
 
-    // Calculate path
     const pathNodes = findPath(startNode, endNode);
 
     if (pathNodes) {
-      // Convert node keys to coordinates
       const pathCoordinates = [
-        userLocation, // Start from user's exact location
+        userLocation,
         ...pathNodes.map((nodeKey) => PATH_NODES[nodeKey]),
       ];
       setRoute(pathCoordinates);
@@ -218,12 +249,11 @@ const NorthCampus = () => {
     if (snappedPoint) {
       setUserLocation(snappedPoint);
       setPlacingLocation(false);
-      setRoute(null); // Clear any existing route
+      setRoute(null);
     }
   };
 
   const handleMouseDown = (e) => {
-    // Don't start dragging if clicking on UI elements
     if (
       e.target.closest(
         ".search-bar, .location-toggle, .zoom-controls, .info-panel"
@@ -311,19 +341,13 @@ const NorthCampus = () => {
   const focusBuilding = (b) => {
     setSelectedBuilding(b);
 
-    // 🚫 If navigating, do NOT zoom
     if (campusMode && userLocation) {
       calculateRoute(b);
       return;
     }
 
-    if (!(campusMode && userLocation)) {
-      // optional zoom later if you want
-    }
+    setShowBuildingModal(true);
 
-    setShowBuildingModal(true); // 👈 OPEN POPUP
-
-    // ✅ Only zoom when just browsing
     zoomToBuilding(b);
   };
 
@@ -703,10 +727,92 @@ const NorthCampus = () => {
 
               <div className="modal-events">
                 <h3>📅 Events</h3>
-                <p className="empty-events">No events added yet.</p>
+
+                {(events[selectedBuilding.id] || []).length === 0 ? (
+                  <p className="empty-events">No events added yet.</p>
+                ) : (
+                  events[selectedBuilding.id].map((evt) => (
+                    <div
+                      key={evt.id}
+                      className="event-item"
+                      style={{ borderLeft: `6px solid ${evt.color}` }}
+                    >
+                      <strong>{evt.title}</strong>
+                      <div className="event-meta">
+                        {evt.date} • {evt.time}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
-              <button className="add-event-btn">➕ Add Event</button>
+              <button
+                className="add-event-btn"
+                onClick={() => setShowEventModal(true)}
+              >
+                ➕ Add Event
+              </button>
+
+              {showEventModal && (
+                <div
+                  className="event-modal-overlay"
+                  onClick={() => setShowEventModal(false)}
+                >
+                  <div
+                    className="event-modal"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h2>Add Event</h2>
+
+                    <input
+                      type="text"
+                      placeholder="Event title"
+                      value={eventTitle}
+                      onChange={(e) => setEventTitle(e.target.value)}
+                    />
+
+                    <input
+                      type="date"
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                    />
+
+                    <input
+                      type="time"
+                      value={eventTime}
+                      onChange={(e) => setEventTime(e.target.value)}
+                    />
+
+                    <label className="color-picker">
+                      Event color
+                      <input
+                        type="color"
+                        value={eventColor}
+                        onChange={(e) => setEventColor(e.target.value)}
+                      />
+                    </label>
+
+                    <div className="event-modal-actions">
+                      <button
+                        className="cancel-btn"
+                        onClick={() => setShowEventModal(false)}
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        className="save-btn"
+                        onClick={() => {
+                          handleAddEvent();
+                          setShowEventModal(false); // 👈 auto close
+                        }}
+                      >
+                        Save Event
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
         </div>
