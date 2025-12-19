@@ -43,6 +43,7 @@ const NorthCampus = () => {
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDraggingUI, setIsDraggingUI] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const ZOOM_STEP = 0.2;
   const MIN_ZOOM = 0.5;
@@ -50,6 +51,10 @@ const NorthCampus = () => {
 
   const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
   const zoomOut = () => setScale((p) => Math.max(p - ZOOM_STEP, MIN_ZOOM));
+
+  const filteredBuildings = BUILDINGS.filter((b) =>
+    b.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const resetView = () => {
     setScale(1);
@@ -154,6 +159,39 @@ const NorthCampus = () => {
         onWheel={handleWheel}
         style={{ cursor: isDraggingUI ? "grabbing" : "grab" }}
       >
+        <div className="search-bar">
+          <div className="search-input-wrapper">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search buildings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {searchQuery && (
+            <div className="search-results">
+              {filteredBuildings.length > 0 ? (
+                filteredBuildings.map((b) => (
+                  <div
+                    key={b.id}
+                    className="search-item"
+                    onClick={() => {
+                      focusBuilding(b);
+                      setSearchQuery("");
+                    }}
+                  >
+                    {b.name}
+                  </div>
+                ))
+              ) : (
+                <div className="search-item disabled">No results</div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="zoom-controls">
           <button onClick={zoomIn}>+</button>
           <button onClick={zoomOut}>−</button>
