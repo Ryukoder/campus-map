@@ -7,6 +7,16 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleLogin = () => {
+    if (!email || !password) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
     console.log("Email:", email);
     console.log("Password:", password);
     console.log("Remember Me:", rememberMe);

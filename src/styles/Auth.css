@@ -73,3 +73,9 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.error-text {
+  color: red;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
