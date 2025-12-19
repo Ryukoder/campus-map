@@ -40,3 +40,25 @@
   color: #2563eb;
   cursor: pointer;
 }
+
+.auth-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.forgot {
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.forgot:hover {
+  text-decoration: underline;
+}

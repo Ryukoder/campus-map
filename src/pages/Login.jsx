@@ -4,11 +4,22 @@ import "../styles/auth.css";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState("");
 
   const handleLogin = () => {
     console.log("Email:", email);
     console.log("Password:", password);
+    console.log("Remember me:", rememberMe);
     alert("Login Button Clicked");
+  };
+
+  const handleForgotPassword = () => {
+    if (!email) {
+      alert("Please Enter Your Email First!");
+      return;
+    }
+
+    alert(`Password reset link will be sent to ${email}`);
   };
 
   return (
@@ -28,6 +39,21 @@ const Login = () => {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
+
+      <div className="auth-row">
+        <label className="remember">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          Remember me
+        </label>
+
+        <span className="forgot" onClick={handleForgotPassword}>
+          Forgot password?
+        </span>
+      </div>
 
       <button onClick={handleLogin}>Login</button>
 
