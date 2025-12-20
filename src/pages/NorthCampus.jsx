@@ -1,6 +1,10 @@
 import { useState, useRef } from "react";
 import "../styles/Map.css";
 import { useEffect } from "react";
+import { db } from "../firebase";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../firebase";
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 600;
@@ -151,6 +155,7 @@ const NorthCampus = () => {
   const isDragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const DEFAULT_EVENT_DURATION_MIN = 60;
+  const [user] = useAuthState(auth);
 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [scale, setScale] = useState(1);
@@ -163,8 +168,9 @@ const NorthCampus = () => {
   const [route, setRoute] = useState(null);
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [hoveredBuilding, setHoveredBuilding] = useState(null);
-
   const [events, setEvents] = useState({});
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+
   const [showEventForm, setShowEventForm] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
@@ -183,7 +189,6 @@ const NorthCampus = () => {
         (e) => e.id !== eventId
       );
 
-      // If no events left for this building, remove the key
       if (updatedEvents.length === 0) {
         const { [buildingId]: _, ...rest } = prev;
         return rest;
@@ -195,6 +200,102 @@ const NorthCampus = () => {
       };
     });
   };
+
+  // Replace your existing useEffect hooks with these corrected versions:
+
+  // 1. LOAD events when user logs in (ONE TIME ONLY)
+  useEffect(() => {
+    if (!user) return;
+
+    const loadEvents = async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists() && snap.data().events) {
+        setEvents(snap.data().events);
+      }
+      setEventsLoaded(true); // Mark as loaded
+    };
+
+    loadEvents();
+  }, [user]);
+
+  // 2. SAVE events whenever they change (but only after initial load)
+  useEffect(() => {
+    if (!user || !eventsLoaded) return; // Don't save until we've loaded first!
+
+    const saveEvents = async () => {
+      await setDoc(doc(db, "users", user.uid), { events }, { merge: true });
+    };
+
+    saveEvents();
+  }, [events, user, eventsLoaded]);
+
+  // 3. Clean up expired events (keep this as is)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      setEvents((prev) => {
+        const updated = {};
+
+        Object.entries(prev).forEach(([buildingId, evts]) => {
+          const activeEvents = evts.filter((e) => e.endTime > now);
+
+          if (activeEvents.length > 0) {
+            updated[buildingId] = activeEvents;
+          }
+        });
+
+        return updated;
+      });
+    }, 30 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 4. Send notifications (keep this as is)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      setEvents((prev) => {
+        const updated = {};
+
+        Object.entries(prev).forEach(([buildingId, evts]) => {
+          const newEvents = evts.map((e) => {
+            const reminderTime = e.startTime - 1 * 60 * 1000;
+
+            if (
+              !e.reminded &&
+              now >= reminderTime &&
+              now < e.startTime &&
+              Notification.permission === "granted"
+            ) {
+              new Notification("⏰ Upcoming Event", {
+                body: `${e.title} starts in 1 minutes`,
+              });
+
+              return { ...e, reminded: true };
+            }
+
+            return e;
+          });
+
+          updated[buildingId] = newEvents;
+        });
+
+        return updated;
+      });
+    }, 30 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 5. Request notification permission (keep this as is)
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
