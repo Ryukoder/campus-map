@@ -40,3 +40,10 @@
 .read-the-docs {
   color: #888;
 }
+
+.search-bar:hover {
+    box-shadow: 0 8px 15px rgba(26, 115, 232, 0.4)!important; /* Blue glow */
+    border-color: #1a73e8!important; /* Google Blue border */
+    transform: translateY(-2px); /* Lifts it up slightly */
+    transition: all 0.3s ease; /* Makes the animation smooth */
+}
