@@ -596,7 +596,8 @@ const NorthCampus = () => {
           style={{
             position: "absolute",
             top: 20,
-            left: 20,
+            right: 25,
+            left: "auto",
             zIndex: 10,
             backgroundColor: "white",
             borderRadius: 8,
@@ -666,8 +667,9 @@ const NorthCampus = () => {
           className="location-toggle"
           style={{
             position: "absolute",
-            top: 20,
-            right: 20,
+            bottom: 20,
+            top: "auto",
+            right: 80,
             zIndex: 10,
             backgroundColor: "white",
             padding: 12,
