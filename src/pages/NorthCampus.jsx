@@ -184,24 +184,7 @@ const BUILDING_META = {
     },
   },
 
-  Open_Spaces: {
-    open_spaces1: {
-      name: "Open Space 1",
-      pathNode: "open_spaces1",
-    },
-    open_spaces2: {
-      name: "Open Space 2",
-      pathNode: "open_spaces2",
-    },
-    open_spaces3: {
-      name: "Open Space 3",
-      pathNode: "open_spaces3",
-    },
-    open_spaces4: {
-      name: "Open Space 4",
-      pathNode: "open_spaces4",
-    },
-  },
+  
 };
 
 const PATH_NODES = {
@@ -255,53 +238,33 @@ const PATH_NODES = {
   CV_Raman_Guest_House: { x: 3196, y: 1226 },
   Audi: { x: 3555, y: 1145 },
   Health_Centre: { x: 3412, y: 835 },
-
-  // Roads & Open Spaces
-  roads: { x: 2145, y: 1519 },
-  open_spaces1: { x: 1987, y: 1107 },
-  open_spaces2: { x: 2056, y: 951 },
-  open_spaces3: { x: 2403, y: 977 },
-  open_spaces4: { x: 2881, y: 1099 },
 };
+  
 
 const PATH_EDGES = {
   // --- Faculty Cluster (Bottom of Map) ---
   // Connected to each other and the main road
-  faculty_area1: ["faculty_area3", "roads"],
-  faculty_area2: ["faculty_area4", "roads"],
-  faculty_area3: ["faculty_area1", "roads"],
+  faculty_area1: ["faculty_area3"],
+  faculty_area2: ["faculty_area4"],
+  faculty_area3: ["faculty_area1"],
   faculty_area4: ["faculty_area2", "Oak_Mess"],
-
-  // --- The Main "Spine" (Connecting North to South) ---
-  // These act as the highway connecting different zones
-  roads: [
-    "faculty_area1",
-    "faculty_area2",
-    "faculty_area3",
-    "open_spaces1",
-    "open_spaces4",
-  ],
-  open_spaces1: ["roads", "open_spaces2", "B16", "B8"],
-  open_spaces2: ["open_spaces1", "open_spaces3", "Central_Library", "B15"],
-  open_spaces3: ["open_spaces2", "open_spaces4", "Pine_Mess", "Tulsi_Mess"],
-  open_spaces4: ["roads", "open_spaces3", "B21", "B20"],
 
   // --- Girls Hostels (Middle Right) ---
   // Connected to Open Spaces 4 and 1
-  B16: ["open_spaces1", "B20"],
-  B20: ["B16", "open_spaces4", "B22"],
-  B21: ["open_spaces4", "B22"],
+  B16: ["B20"],
+  B20: ["B16", "B22"],
+  B21: ["B22"],
   B22: ["B20", "B21"],
 
   // --- Boys Hostels (Middle/Top Center) ---
   // Cluster around Open Space 2 and 3
-  B8: ["open_spaces1", "B12", "B9"],
+  B8: ["B12", "B9"],
   B9: ["B8", "B10"],
   B10: ["B9", "B12", "A17"], // Gateway to Academic West
   B11: ["B12", "B18"],
   B12: ["B8", "B10", "B11"],
 
-  B15: ["open_spaces2", "B18", "A14"],
+  B15: ["B18", "A14"],
   B18: ["B15", "B11", "B19"],
   B19: ["B18", "B23", "A13"],
   B23: ["B19", "Pine_Mess"],
@@ -317,7 +280,7 @@ const PATH_EDGES = {
 
   // --- Academic Blocks (Top of Map) ---
   // Connected via a "Library Hub" and "A13 Hub"
-  Central_Library: ["open_spaces2", "A13", "A18", "A17"],
+  Central_Library: ["A13", "A18", "A17"],
 
   A13: ["Central_Library", "A14", "B19"],
   A14: ["A13", "B15"],
@@ -334,14 +297,14 @@ const PATH_EDGES = {
   // --- Mess Areas (Food Hubs) ---
   Oak_Mess: ["faculty_area4", "B17", "Peepal_Mess"],
   Peepal_Mess: ["Oak_Mess"],
-  Pine_Mess: ["open_spaces3", "B13", "B23"],
-  Tulsi_Mess: ["open_spaces3", "A9", "A11"],
+  Pine_Mess: ["B13", "B23"],
+  Tulsi_Mess: ["A9", "A11"],
 
   // --- Village Square (Far East) ---
-  Sports_Complex: ["open_spaces4", "Health_Centre"],
+  Sports_Complex: ["Health_Centre"],
   Health_Centre: ["Sports_Complex", "Audi"],
   Audi: ["Health_Centre", "CV_Raman_Guest_House"],
-  CV_Raman_Guest_House: ["Audi", "roads"],
+  CV_Raman_Guest_House: ["Audi"],
 };
 
 const getPathSegments = () => {
@@ -607,14 +570,29 @@ const NorthCampus = () => {
     .filter((b) => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const resetView = () => {
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
     const minZoom = getMinZoom();
+
+    const scaledW = MAP_WIDTH * minZoom;
+    const scaledH = MAP_HEIGHT * minZoom;
+
+    const centerX = (rect.width - scaledW) / 2;
+    const centerY = (rect.height - scaledH) / 2;
+
     setScale(minZoom);
-    setTranslate(clampTranslate(0, 0, minZoom));
+    setTranslate({
+      x: centerX,
+      y: centerY,
+    });
   };
+
 
   const closeBuildingModal = () => {
     setShowBuildingModal(false);
     setIsAutoZoomed(false);
+    resetView();
   };
 
   // Step 11A — calculateRoute (KEEP ONLY ONCE)
@@ -884,7 +862,7 @@ const NorthCampus = () => {
           position: "relative",
           overflow: "hidden",
           cursor: isDraggingUI ? "grabbing" : "grab",
-          backgroundColor: "#f5f5f5",
+          backgroundColor: "#ffffff",
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
