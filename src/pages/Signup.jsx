@@ -54,9 +54,6 @@ const Signup = () => {
     } catch (err) {
       setError(err.message);
     }
-
-    console.log("Signup data:", { email, password });
-    alert("Signup validation passed (Firebase next)");
   };
 
   return (
