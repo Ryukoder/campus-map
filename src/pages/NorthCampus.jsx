@@ -18,7 +18,6 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#8ecae6",
-    pathNode: "F",
   },
   {
     id: "library",
@@ -28,7 +27,6 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#ffb703",
-    pathNode: "E",
   },
   {
     id: "admin",
@@ -38,117 +36,8 @@ const BUILDINGS = [
     width: 200,
     height: 120,
     color: "#90dbb4",
-    pathNode: "G",
   },
 ];
-
-const PATH_NODES = {
-  A: { x: 100, y: 300 },
-  B: { x: 300, y: 300 },
-  C: { x: 500, y: 300 },
-  D: { x: 700, y: 300 },
-  E: { x: 700, y: 160 },
-  F: { x: 250, y: 160 },
-  G: { x: 250, y: 420 },
-};
-
-const PATH_EDGES = {
-  A: ["B"],
-  B: ["A", "C", "F", "G"],
-  C: ["B", "D"],
-  D: ["C", "E"],
-  E: ["D"],
-  F: ["B"],
-  G: ["B"],
-};
-
-const getPathSegments = () => {
-  const segments = [];
-  Object.entries(PATH_EDGES).forEach(([from, toList]) => {
-    toList.forEach((to) => {
-      const a = PATH_NODES[from];
-      const b = PATH_NODES[to];
-      if (from < to) {
-        segments.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
-      }
-    });
-  });
-  return segments;
-};
-
-const getClosestPointOnSegment = (px, py, x1, y1, x2, y2) => {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  if (dx === 0 && dy === 0) return { x: x1, y: y1 };
-  const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
-  const clampedT = Math.max(0, Math.min(1, t));
-  return { x: x1 + clampedT * dx, y: y1 + clampedT * dy };
-};
-
-const snapToPath = (x, y) => {
-  const segments = getPathSegments();
-  let closestPoint = null;
-  let minDistance = Infinity;
-
-  segments.forEach((seg) => {
-    const point = getClosestPointOnSegment(
-      x,
-      y,
-      seg.x1,
-      seg.y1,
-      seg.x2,
-      seg.y2
-    );
-    const dist = Math.hypot(point.x - x, point.y - y);
-    if (dist < minDistance) {
-      minDistance = dist;
-      closestPoint = point;
-    }
-  });
-
-  return closestPoint;
-};
-
-const getClosestPathNode = (x, y) => {
-  let closestNode = null;
-  let minDist = Infinity;
-
-  Object.entries(PATH_NODES).forEach(([key, node]) => {
-    const dist = Math.hypot(node.x - x, node.y - y);
-    if (dist < minDist) {
-      minDist = dist;
-      closestNode = key;
-    }
-  });
-
-  return closestNode;
-};
-
-const findPath = (startNode, endNode) => {
-  if (startNode === endNode) return [startNode];
-
-  const queue = [[startNode]];
-  const visited = new Set([startNode]);
-
-  while (queue.length > 0) {
-    const path = queue.shift();
-    const node = path[path.length - 1];
-
-    if (node === endNode) {
-      return path;
-    }
-
-    const neighbors = PATH_EDGES[node] || [];
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push([...path, neighbor]);
-      }
-    }
-  }
-
-  return null;
-};
 
 const NorthCampus = () => {
   const containerRef = useRef(null);
@@ -162,16 +51,11 @@ const NorthCampus = () => {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDraggingUI, setIsDraggingUI] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [campusMode, setCampusMode] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
-  const [placingLocation, setPlacingLocation] = useState(false);
-  const [route, setRoute] = useState(null);
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [hoveredBuilding, setHoveredBuilding] = useState(null);
   const [events, setEvents] = useState({});
   const [eventsLoaded, setEventsLoaded] = useState(false);
 
-  const [showEventForm, setShowEventForm] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -341,14 +225,6 @@ const NorthCampus = () => {
       return buildingEvents[0].color;
     }
 
-    // Multiple events → gradient
-    const colors = buildingEvents.map((e) => e.color);
-    const step = 100 / colors.length;
-
-    const gradientStops = colors
-      .map((color, index) => `${color} ${index * step}% ${(index + 1) * step}%`)
-      .join(", ");
-
     return `url(#grad-${buildingId})`;
   };
 
@@ -358,30 +234,50 @@ const NorthCampus = () => {
       return;
     }
 
-    const startTimestamp = new Date(`${eventDate}T${eventTime}`).getTime();
+    const startTime = new Date(`${eventDate}T${eventTime}`).getTime();
+    const endTime = startTime + DEFAULT_EVENT_DURATION_MIN * 60 * 1000;
 
-    const endTimestamp =
-      startTimestamp + DEFAULT_EVENT_DURATION_MIN * 60 * 1000;
+    setEvents((prev) => {
+      const list = prev[selectedBuilding.id] || [];
 
-    const newEvent = {
-      id: Date.now().toString(),
-      title: eventTitle,
-      buildingId: selectedBuilding.id,
-      startTime: startTimestamp,
-      endTime: endTimestamp,
-      color: eventColor,
-      reminded: false,
-    };
+      // ✏️ EDIT MODE
+      if (editingEvent) {
+        return {
+          ...prev,
+          [selectedBuilding.id]: list.map((e) =>
+            e.id === editingEvent.id
+              ? {
+                  ...e,
+                  title: eventTitle,
+                  startTime,
+                  endTime,
+                  color: eventColor,
+                  reminded: false,
+                }
+              : e
+          ),
+        };
+      }
 
-    setEvents((prev) => ({
-      ...prev,
-      [selectedBuilding.id]: [...(prev[selectedBuilding.id] || []), newEvent],
-    }));
+      // ➕ ADD MODE
+      return {
+        ...prev,
+        [selectedBuilding.id]: [
+          ...list,
+          {
+            id: Date.now().toString(),
+            title: eventTitle,
+            startTime,
+            endTime,
+            color: eventColor,
+            reminded: false,
+          },
+        ],
+      };
+    });
 
-    setEventTitle("");
-    setEventDate("");
-    setEventTime("");
-    setEventColor("#1e90ff");
+    setEditingEvent(null);
+    setShowEventModal(false);
   };
 
   const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
@@ -395,45 +291,6 @@ const NorthCampus = () => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
     setSelectedBuilding(null);
-    setRoute(null);
-  };
-
-  const calculateRoute = (building) => {
-    if (!userLocation) return;
-
-    const startNode = getClosestPathNode(userLocation.x, userLocation.y);
-
-    const endNode = building.pathNode;
-
-    const pathNodes = findPath(startNode, endNode);
-
-    if (pathNodes) {
-      const pathCoordinates = [
-        userLocation,
-        ...pathNodes.map((nodeKey) => PATH_NODES[nodeKey]),
-      ];
-      setRoute(pathCoordinates);
-    } else {
-      setRoute(null);
-    }
-  };
-
-  const setLocationFromClick = (e) => {
-    if (!campusMode || !placingLocation || !containerRef.current) return;
-
-    const rect = containerRef.current.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
-    const svgX = (screenX - translate.x) / scale;
-    const svgY = (screenY - translate.y) / scale;
-
-    const snappedPoint = snapToPath(svgX, svgY);
-
-    if (snappedPoint) {
-      setUserLocation(snappedPoint);
-      setPlacingLocation(false);
-      setRoute(null);
-    }
   };
 
   const handleMouseDown = (e) => {
@@ -523,14 +380,7 @@ const NorthCampus = () => {
 
   const focusBuilding = (b) => {
     setSelectedBuilding(b);
-
-    if (campusMode && userLocation) {
-      calculateRoute(b);
-      return;
-    }
-
     setShowBuildingModal(true);
-
     zoomToBuilding(b);
   };
 
@@ -556,7 +406,6 @@ const NorthCampus = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        onClick={setLocationFromClick}
       >
         {/* Search Bar */}
         <div
@@ -627,49 +476,6 @@ const NorthCampus = () => {
                 </div>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Location Toggle */}
-        <div
-          className="location-toggle"
-          style={{
-            position: "absolute",
-            bottom: 20,
-            top: "auto",
-            right: 80,
-            zIndex: 10,
-            backgroundColor: "white",
-            padding: 12,
-            borderRadius: 8,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          }}
-        >
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={campusMode}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                setCampusMode(enabled);
-                setUserLocation(null);
-                setPlacingLocation(enabled);
-                setRoute(null);
-              }}
-            />
-            <span style={{ fontSize: 14 }}>I am on campus</span>
-          </label>
-          {placingLocation && (
-            <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#666" }}>
-              Click on a path to set your location
-            </p>
           )}
         </div>
 
@@ -751,48 +557,6 @@ const NorthCampus = () => {
             <rect x="0" y="280" width="1000" height="40" fill="#ccc" />
             <rect x="480" y="0" width="40" height="600" fill="#ccc" />
 
-            {/* Walkable paths */}
-            {Object.entries(PATH_EDGES).map(([from, toList]) =>
-              toList.map((to) => {
-                const fromNode = PATH_NODES[from];
-                const toNode = PATH_NODES[to];
-                return (
-                  <line
-                    key={`${from}-${to}`}
-                    x1={fromNode.x}
-                    y1={fromNode.y}
-                    x2={toNode.x}
-                    y2={toNode.y}
-                    stroke="#888"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                  />
-                );
-              })
-            )}
-
-            {/* Route visualization */}
-            {route && route.length > 1 && (
-              <g>
-                {route.slice(0, -1).map((point, i) => {
-                  const nextPoint = route[i + 1];
-                  return (
-                    <line
-                      key={`route-${i}`}
-                      x1={point.x}
-                      y1={point.y}
-                      x2={nextPoint.x}
-                      y2={nextPoint.y}
-                      stroke="#1e90ff"
-                      strokeWidth="6"
-                      strokeLinecap="round"
-                      opacity="0.8"
-                    />
-                  );
-                })}
-              </g>
-            )}
-
             <defs>
               {Object.entries(events).map(([buildingId, evts]) => {
                 if (evts.length <= 1) return null;
@@ -824,14 +588,42 @@ const NorthCampus = () => {
               })}
             </defs>
 
+            <defs>
+              {Object.entries(events).map(([buildingId, evts]) => {
+                if (evts.length <= 1) return null;
+
+                const step = 100 / evts.length;
+
+                return (
+                  <linearGradient
+                    key={buildingId}
+                    id={`grad-${buildingId}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    {evts.map((e, index) => (
+                      <stop
+                        key={index}
+                        offset={`${index * step}%`}
+                        stopColor={e.color}
+                      />
+                    ))}
+                    <stop
+                      offset="100%"
+                      stopColor={evts[evts.length - 1].color}
+                    />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+
             {/* Buildings */}
             {BUILDINGS.map((b) => (
               <g
                 key={b.id}
                 onClick={() => focusBuilding(b)}
-                style={{
-                  pointerEvents: placingLocation ? "none" : "auto",
-                }}
                 onMouseEnter={() => setHoveredBuilding(b)}
                 onMouseLeave={() => setHoveredBuilding(null)}
               >
@@ -882,38 +674,6 @@ const NorthCampus = () => {
                     : "No upcoming events"}
                 </text>
               </g>
-            )}
-
-            {/* User location marker */}
-            {campusMode && userLocation && (
-              <g>
-                <circle
-                  cx={userLocation.x}
-                  cy={userLocation.y}
-                  r="12"
-                  fill="#1e90ff"
-                  stroke="white"
-                  strokeWidth="3"
-                />
-                <circle
-                  cx={userLocation.x}
-                  cy={userLocation.y}
-                  r="4"
-                  fill="white"
-                />
-              </g>
-            )}
-
-            {/* Destination marker */}
-            {route && route.length > 0 && (
-              <circle
-                cx={route[route.length - 1].x}
-                cy={route[route.length - 1].y}
-                r="10"
-                fill="red"
-                stroke="white"
-                strokeWidth="2"
-              />
             )}
           </svg>
         </div>
@@ -1088,64 +848,7 @@ const NorthCampus = () => {
                         Cancel
                       </button>
 
-                      <button
-                        className="save-btn"
-                        onClick={() => {
-                          if (!eventTitle || !eventDate || !eventTime) {
-                            alert("Please fill all fields");
-                            return;
-                          }
-
-                          const startTime = new Date(
-                            `${eventDate}T${eventTime}`
-                          ).getTime();
-
-                          const endTime =
-                            startTime + DEFAULT_EVENT_DURATION_MIN * 60 * 1000;
-
-                          setEvents((prev) => {
-                            const list = prev[selectedBuilding.id] || [];
-
-                            // ✏️ EDIT MODE
-                            if (editingEvent) {
-                              return {
-                                ...prev,
-                                [selectedBuilding.id]: list.map((e) =>
-                                  e.id === editingEvent.id
-                                    ? {
-                                        ...e,
-                                        title: eventTitle,
-                                        startTime,
-                                        endTime,
-                                        color: eventColor,
-                                        reminded: false, // reset reminder
-                                      }
-                                    : e
-                                ),
-                              };
-                            }
-
-                            // ➕ ADD MODE
-                            return {
-                              ...prev,
-                              [selectedBuilding.id]: [
-                                ...list,
-                                {
-                                  id: Date.now().toString(),
-                                  title: eventTitle,
-                                  startTime,
-                                  endTime,
-                                  color: eventColor,
-                                  reminded: false,
-                                },
-                              ],
-                            };
-                          });
-
-                          setEditingEvent(null);
-                          setShowEventModal(false);
-                        }}
-                      >
+                      <button className="save-btn" onClick={handleAddEvent}>
                         {editingEvent ? "Update Event" : "Save Event"}
                       </button>
                     </div>
