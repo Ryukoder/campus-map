@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import NorthCampus from "./pages/NorthCampus";
+import Navbar from "./navbar";  
 
 function App() {
   return (
