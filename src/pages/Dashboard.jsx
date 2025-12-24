@@ -1,3 +1,4 @@
+import React from "react"; // Ensure React is imported
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
@@ -12,22 +13,34 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="login-page">
+    <div className="dashboard-container">
+      {/* Background Image Wrapper */}
+      <div className="dashboard-background"></div>
+      
+      {/* Dark Overlay for readability */}
+      <div className="dashboard-overlay"></div>
+
+      {/* Logout Button (Top Right) */}
       <button className="logout-btn" onClick={handleLogout}>
         Logout
       </button>
 
-      <div className="login-card">
-        <h1 className="login-title">Select Campus</h1>
+      {/* Main Glass Card */}
+      <div className="dashboard-card">
+        <h1 className="dashboard-title">Select Campus</h1>
 
-        <button
-          className="login-button"
-          onClick={() => navigate("/north-campus")}
-        >
-          North Campus
-        </button>
+        <div className="button-group">
+          <button
+            className="campus-btn primary-btn"
+            onClick={() => navigate("/north-campus")}
+          >
+            North Campus
+          </button>
 
-        <button className="login-button">South Campus</button>
+          <button className="campus-btn secondary-btn">
+            South Campus
+          </button>
+        </div>
       </div>
     </div>
   );
