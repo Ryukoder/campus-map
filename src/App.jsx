@@ -5,7 +5,9 @@ import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import NorthCampus from "./pages/NorthCampus";
-import Navbar from "./navbar";
+
+// CHANGED: Imported Sidebar from components instead of the old Navbar
+import Sidebar from "./components/Sidebar";
 
 function App() {
   return (
@@ -60,7 +62,10 @@ function App() {
         }}
       >
         <BrowserRouter>
-          <Navbar />
+          {/* CHANGED: Replaced <Navbar /> with <Sidebar /> */}
+          {/* It is placed inside BrowserRouter so navigation works */}
+          <Sidebar />
+          
           <Routes>
             <Route
               path="/"
