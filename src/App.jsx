@@ -65,7 +65,7 @@ function App() {
           {/* CHANGED: Replaced <Navbar /> with <Sidebar /> */}
           {/* It is placed inside BrowserRouter so navigation works */}
           <Sidebar />
-          
+
           <Routes>
             <Route
               path="/"
