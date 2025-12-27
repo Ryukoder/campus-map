@@ -6,38 +6,49 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "../firebase";
 
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 600;
+const BUILDING_META = {
+  B8: { name: "B8 - Boys Hostel" },
+  B9: { name: "B9 - Boys Hostel" },
+  B10: { name: "B10 - Boys Hostel" },
+  B11: { name: "B11 - Boys Hostel" },
+  B12: { name: "B12 - Boys Hostel" },
+  B13: { name: "B13 - Boys Hostel" },
+  B14: { name: "B14 - Boys Hostel" },
+  B15: { name: "B15 - Boys Hostel" },
+  B16: { name: "B16 - Girls Hostel" },
+  B17: { name: "B17 - Boys Hostel" },
+  B18: { name: "B18 - Boys Hostel" },
+  B19: { name: "B19 - Boys Hostel" },
+  B20: { name: "B20 - Girls Hostel" },
+  B21: { name: "B21 - Girls Hostel" },
+  B22: { name: "B22 - Girls Hostel" },
+  B23: { name: "B23 - Boys Hostel" },
+  B24: { name: "B24 - Boys Hostel" },
+  B26: { name: "B26 - Boys Hostel" },
 
-const BUILDINGS = [
-  {
-    id: "science",
-    name: "Science Block",
-    x: 150,
-    y: 100,
-    width: 200,
-    height: 120,
-    color: "#8ecae6",
-  },
-  {
-    id: "library",
-    name: "Library",
-    x: 650,
-    y: 100,
-    width: 200,
-    height: 120,
-    color: "#ffb703",
-  },
-  {
-    id: "admin",
-    name: "Admin Block",
-    x: 150,
-    y: 380,
-    width: 200,
-    height: 120,
-    color: "#90dbb4",
-  },
-];
+  A9: { name: "A9 - Academic Block" },
+  A10: { name: "A10 - Academic Block" },
+  A11: { name: "A11 - Academic Block" },
+  A13: { name: "A13 - Academic Block" },
+  A14: { name: "A14 - Academic Block" },
+  A17: { name: "A17 - Academic Block" },
+  A18: { name: "A18 - Academic Block" },
+  A19: { name: "A19 - Academic Block" },
+
+  Oak_Mess: { name: "Oak Mess" },
+  Pine_Mess: { name: "Pine Mess" },
+  Tulsi_Mess: { name: "Tulsi Mess" },
+  Peepal_Mess: { name: "Peepal Mess" },
+
+  Library: { name: "Central Library" },
+  Audi: { name: "Auditorium" },
+  Sports_Complex: { name: "Sports Complex" },
+  Health_Centre: { name: "Health Centre" },
+  Bus_Stop: { name: "Bus Stop" },
+};
+
+const SVG_WIDTH = 4029;
+const SVG_HEIGHT = 2090;
 
 const NorthCampus = () => {
   const containerRef = useRef(null);
@@ -45,9 +56,10 @@ const NorthCampus = () => {
   const lastPos = useRef({ x: 0, y: 0 });
   const DEFAULT_EVENT_DURATION_MIN = 60;
   const [user] = useAuthState(auth);
+  const dragDistance = useRef(0);
 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.3);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDraggingUI, setIsDraggingUI] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,9 +74,10 @@ const NorthCampus = () => {
   const [eventTime, setEventTime] = useState("");
   const [eventColor, setEventColor] = useState("#1e90ff");
   const [editingEvent, setEditingEvent] = useState(null);
+  const [eventEndTime, setEventEndTime] = useState("");
 
   const ZOOM_STEP = 0.2;
-  const MIN_ZOOM = 0.5;
+  const [minZoom, setMinZoom] = useState(0.15);
   const MAX_ZOOM = 3;
 
   // Add this utility
@@ -96,6 +109,16 @@ const NorthCampus = () => {
     saveEvents();
   }, [debouncedEvents, user, eventsLoaded]);
 
+  // Add this NEW function here (after useDebounce, before handleDeleteEvent)
+  const resetEventForm = () => {
+    setEventTitle("");
+    setEventDate("");
+    setEventTime("");
+    setEventEndTime("");
+    setEventColor("#1e90ff");
+    setEditingEvent(null);
+  };
+
   const handleDeleteEvent = (buildingId, eventId) => {
     setEvents((prev) => {
       const updatedEvents = (prev[buildingId] || []).filter(
@@ -113,6 +136,29 @@ const NorthCampus = () => {
       };
     });
   };
+
+  // Auto-fit map to viewport on mount
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current.getBoundingClientRect();
+
+    // Calculate scale to fit entire map in viewport
+    const scaleX = container.width / SVG_WIDTH;
+    const scaleY = container.height / SVG_HEIGHT;
+
+    // Use the smaller scale to ensure everything fits
+    const initialScale = Math.min(scaleX, scaleY) * 0.95; // 0.95 adds 5% padding
+
+    setScale(initialScale);
+    setMinZoom(initialScale); // Set this as the minimum zoom!
+
+    // Center the map
+    setTranslate({
+      x: (container.width - SVG_WIDTH * initialScale) / 2,
+      y: (container.height - SVG_HEIGHT * initialScale) / 2,
+    });
+  }, []);
 
   // Replace your existing useEffect hooks with these corrected versions:
 
@@ -189,7 +235,12 @@ const NorthCampus = () => {
               Notification.permission === "granted"
             ) {
               new Notification("⏰ Upcoming Event", {
-                body: `${e.title} starts in 1 minutes`,
+                body: `${e.title} starts in 1 minute at ${new Date(
+                  e.startTime
+                ).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`,
               });
 
               return { ...e, reminded: true };
@@ -214,20 +265,6 @@ const NorthCampus = () => {
     }
   }, []);
 
-  const getBuildingFill = (buildingId, defaultColor, events) => {
-    const buildingEvents = events[buildingId] || [];
-
-    if (buildingEvents.length === 0) {
-      return defaultColor;
-    }
-
-    if (buildingEvents.length === 1) {
-      return buildingEvents[0].color;
-    }
-
-    return `url(#grad-${buildingId})`;
-  };
-
   const handleAddEvent = () => {
     if (!eventTitle || !eventDate || !eventTime) {
       alert("Please fill all fields");
@@ -235,8 +272,12 @@ const NorthCampus = () => {
     }
 
     const startTime = new Date(`${eventDate}T${eventTime}`).getTime();
-    const endTime = startTime + DEFAULT_EVENT_DURATION_MIN * 60 * 1000;
+    const endTime = new Date(`${eventDate}T${eventEndTime}`).getTime();
 
+    if (endTime <= startTime) {
+      alert("End time must be after start time");
+      return;
+    }
     setEvents((prev) => {
       const list = prev[selectedBuilding.id] || [];
 
@@ -276,14 +317,14 @@ const NorthCampus = () => {
       };
     });
 
-    setEditingEvent(null);
+    resetEventForm();
     setShowEventModal(false);
   };
 
   const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
-  const zoomOut = () => setScale((p) => Math.max(p - ZOOM_STEP, MIN_ZOOM));
+  const zoomOut = () => setScale((p) => Math.max(p - ZOOM_STEP, minZoom));
 
-  const filteredBuildings = BUILDINGS.filter((b) =>
+  const filteredBuildings = Object.entries(BUILDING_META).filter(([_, b]) =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -301,8 +342,10 @@ const NorthCampus = () => {
     ) {
       return;
     }
+
     isDragging.current = true;
     setIsDraggingUI(true);
+    dragDistance.current = 0; // 👈 ADD THIS
     lastPos.current = { x: e.clientX, y: e.clientY };
   };
 
@@ -313,9 +356,11 @@ const NorthCampus = () => {
     const dx = e.clientX - lastPos.current.x;
     const dy = e.clientY - lastPos.current.y;
 
+    dragDistance.current += Math.abs(dx) + Math.abs(dy);
+
     setTranslate((prev) => {
-      const scaledW = MAP_WIDTH * scale;
-      const scaledH = MAP_HEIGHT * scale;
+      const scaledW = SVG_WIDTH * scale;
+      const scaledH = SVG_HEIGHT * scale;
       const minX = Math.min(0, rect.width - scaledW);
       const minY = Math.min(0, rect.height - scaledH);
 
@@ -343,13 +388,13 @@ const NorthCampus = () => {
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
 
     setScale((prev) => {
-      const next = Math.min(Math.max(prev + delta, MIN_ZOOM), MAX_ZOOM);
+      const next = Math.min(Math.max(prev + delta, minZoom), MAX_ZOOM);
       const pointX = (mouseX - translate.x) / prev;
       const pointY = (mouseY - translate.y) / prev;
       const newX = mouseX - pointX * next;
       const newY = mouseY - pointY * next;
-      const scaledW = MAP_WIDTH * next;
-      const scaledH = MAP_HEIGHT * next;
+      const scaledW = SVG_WIDTH * next;
+      const scaledH = SVG_HEIGHT * next;
       const minX = Math.min(0, rect.width - scaledW);
       const minY = Math.min(0, rect.height - scaledH);
 
@@ -362,26 +407,31 @@ const NorthCampus = () => {
     });
   };
 
-  const zoomToBuilding = (b) => {
-    if (!containerRef.current) return;
+  const zoomToBuilding = (id) => {
+    const el = document.getElementById(id);
+    if (!el || !containerRef.current) return;
 
+    const bbox = el.getBBox();
     const rect = containerRef.current.getBoundingClientRect();
     const targetScale = 2;
 
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-
     setScale(targetScale);
     setTranslate({
-      x: rect.width / 2 - cx * targetScale,
-      y: rect.height / 2 - cy * targetScale,
+      x: rect.width / 2 - (bbox.x + bbox.width / 2) * targetScale,
+      y: rect.height / 2 - (bbox.y + bbox.height / 2) * targetScale,
     });
   };
 
-  const focusBuilding = (b) => {
-    setSelectedBuilding(b);
+  const focusBuilding = (id) => {
+    if (!BUILDING_META[id]) return;
+
+    setSelectedBuilding({
+      id,
+      name: BUILDING_META[id].name,
+    });
+
+    zoomToBuilding(id);
     setShowBuildingModal(true);
-    zoomToBuilding(b);
   };
 
   return (
@@ -399,7 +449,7 @@ const NorthCampus = () => {
           position: "relative",
           overflow: "hidden",
           cursor: isDraggingUI ? "grabbing" : "grab",
-          backgroundColor: "#f5f5f5",
+          backgroundColor: "white",
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -447,18 +497,12 @@ const NorthCampus = () => {
           {searchQuery && (
             <div style={{ borderTop: "1px solid #eee" }}>
               {filteredBuildings.length > 0 ? (
-                filteredBuildings.map((b) => (
+                filteredBuildings.map(([id, b]) => (
                   <div
-                    key={b.id}
+                    key={id}
                     onClick={() => {
-                      focusBuilding(b);
+                      focusBuilding(id);
                       setSearchQuery("");
-                    }}
-                    style={{
-                      padding: 10,
-                      cursor: "pointer",
-                      fontSize: 14,
-                      borderBottom: "1px solid #eee",
                     }}
                     onMouseEnter={(e) =>
                       (e.target.style.backgroundColor = "#f5f5f5")
@@ -466,6 +510,12 @@ const NorthCampus = () => {
                     onMouseLeave={(e) =>
                       (e.target.style.backgroundColor = "white")
                     }
+                    style={{
+                      padding: 10,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      borderBottom: "1px solid #eee",
+                    }}
                   >
                     {b.name}
                   </div>
@@ -542,139 +592,962 @@ const NorthCampus = () => {
         {/* Map */}
         <div
           style={{
+            width: SVG_WIDTH,
+            height: SVG_HEIGHT,
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transformOrigin: "0 0",
-            transition: isDraggingUI ? "none" : "transform 0.1s ease",
-            width: MAP_WIDTH,
-            height: MAP_HEIGHT,
           }}
         >
-          <svg
-            viewBox="0 0 1000 600"
-            style={{ width: "100%", height: "100%", display: "block" }}
-          >
-            {/* Roads */}
-            <rect x="0" y="280" width="1000" height="40" fill="#ccc" />
-            <rect x="480" y="0" width="40" height="600" fill="#ccc" />
-
-            <defs>
-              {Object.entries(events).map(([buildingId, evts]) => {
-                if (evts.length <= 1) return null;
-
-                const step = 100 / evts.length;
-
-                return (
-                  <linearGradient
-                    key={buildingId}
-                    id={`grad-${buildingId}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
-                  >
-                    {evts.map((e, i) => (
-                      <stop
-                        key={i}
-                        offset={`${i * step}%`}
-                        stopColor={e.color}
-                      />
-                    ))}
-                    <stop
-                      offset="100%"
-                      stopColor={evts[evts.length - 1].color}
-                    />
-                  </linearGradient>
-                );
-              })}
-            </defs>
-
-            <defs>
-              {Object.entries(events).map(([buildingId, evts]) => {
-                if (evts.length <= 1) return null;
-
-                const step = 100 / evts.length;
-
-                return (
-                  <linearGradient
-                    key={buildingId}
-                    id={`grad-${buildingId}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
-                  >
-                    {evts.map((e, index) => (
-                      <stop
-                        key={index}
-                        offset={`${index * step}%`}
-                        stopColor={e.color}
-                      />
-                    ))}
-                    <stop
-                      offset="100%"
-                      stopColor={evts[evts.length - 1].color}
-                    />
-                  </linearGradient>
-                );
-              })}
-            </defs>
-
-            {/* Buildings */}
-            {BUILDINGS.map((b) => (
+          <svg viewBox="0 0 4029 2090" width="100%" height="100%">
+            <g id="North_Campus">
+              <rect id="Background" width="4029" height="2090" fill="white" />
               <g
-                key={b.id}
-                onClick={() => focusBuilding(b)}
-                onMouseEnter={() => setHoveredBuilding(b)}
-                onMouseLeave={() => setHoveredBuilding(null)}
+                id="Buildings"
+                onClick={(e) => {
+                  // 🚫 If user dragged, ignore click
+                  if (dragDistance.current > 5) return;
+
+                  e.stopPropagation();
+                  const target = e.target;
+
+                  let buildingId = target.id;
+
+                  if (!buildingId && target.tagName === "tspan") {
+                    buildingId = target.parentElement?.id;
+                  }
+
+                  if (!buildingId) return;
+
+                  if (
+                    target.closest("#Faculty_Area") ||
+                    target.closest("#Roads") ||
+                    target.closest("#Open_spaces") ||
+                    target.closest("#Text_Labels")
+                  )
+                    return;
+
+                  if (BUILDING_META[buildingId]) {
+                    focusBuilding(buildingId);
+                  }
+                }}
+                style={{ cursor: "pointer" }}
               >
-                <rect
-                  x={b.x}
-                  y={b.y}
-                  width={b.width}
-                  height={b.height}
-                  fill={getBuildingFill(b.id, b.color, events)}
-                  stroke={events[b.id]?.length ? "#333" : "none"}
-                  strokeWidth="2"
+                <g id="Faculty_Area">
+                  <path
+                    id="faculty_area4"
+                    d="M845 1293.5C824 1285 624 1166.5 642.5 1207C661 1247.5 837 1676 891.5 1695C946 1714 1097.5 1744 1166 1728C1234.5 1712 1341 1651 1434 1638.5C1527 1626 1783 1686 1946.5 1673C2110 1660 2193 1665.13 2222.5 1638.5C2252 1611.87 2245.25 1626 2248.5 1598.5C2251.75 1571 2193 1452.5 2176.5 1449C2160 1445.5 2114.5 1484.5 2081 1495C2047.5 1505.5 1994.5 1483.5 1946.5 1472.5C1898.5 1461.5 1607.5 1398 1548 1393C1488.5 1388 1108 1354.5 1108 1354.5C1108 1354.5 866 1302 845 1293.5Z"
+                    fill="#FFF6D6"
+                  />
+                  <path
+                    id="faculty_area3"
+                    d="M2791.64 1071.39C2752.96 1078.06 2276.19 1139.95 2262.16 1158.52C2248.14 1177.09 2229.28 1256.13 2229.28 1256.13C2229.28 1256.13 2194.47 1354.68 2211.87 1365.16C2229.28 1375.63 2262.16 1338.02 2262.16 1338.02C2262.16 1338.02 2341.95 1308.98 2376.76 1309.93C2411.58 1310.88 2444.46 1296.12 2444.46 1296.12C2444.46 1296.12 2517.61 1241.09 2572.59 1224.23C2642.57 1202.77 2686.74 1216.31 2760 1214.7C2815.77 1213.48 2848.15 1204.18 2902.85 1214.7C2971.57 1227.92 2992.43 1287.78 3061.94 1296.12C3102.95 1301.05 3150.12 1324.06 3167.35 1287.07C3183.2 1253.05 3143.66 1214.7 3120.93 1202.8C3098.2 1190.9 3044.03 1122.88 2980.22 1096.15C2945.99 1081.81 2925.21 1076.31 2888.35 1071.39C2850.92 1066.4 2830.32 1064.73 2791.64 1071.39Z"
+                    fill="#FFF6D6"
+                  />
+                  <path
+                    id="faculty_area2"
+                    d="M582 990C563 990 543.259 1004.59 539 1020C533.955 1038.26 531.18 1068.25 539 1085.5C552.174 1114.56 578.228 1113.8 607.5 1126.5C645.954 1143.18 663.955 1148.39 701 1168C744.923 1191.26 775.341 1208.08 821.5 1226.5C887.539 1252.86 919.021 1253.6 989.5 1263C1035.65 1269.16 1110.54 1289.55 1156.5 1297C1220.88 1307.43 1232.08 1311.82 1296.5 1322C1363.05 1332.52 1393.05 1325.39 1460 1333C1520.58 1339.88 1548.86 1331.8 1608.5 1344.5C1654.55 1354.3 1679.39 1363.83 1725 1375.5C1779.32 1389.4 1823.02 1398.46 1878 1409.5C1878 1409.5 1956.56 1432.22 2021.5 1434.5C2041.21 1435.19 2060.1 1438.04 2079.5 1434.5C2095.54 1431.57 2103.62 1426.41 2119 1421C2131.53 1416.6 2141.2 1418.47 2151 1409.5C2169.73 1392.36 2147.02 1369.57 2151 1344.5C2154.02 1325.45 2159.89 1315.73 2164.5 1297C2171.2 1269.78 2171.32 1253.72 2178 1226.5C2184.21 1201.18 2197 1186 2197 1168C2197 1141.83 2155.15 1141.9 2119 1132C2065.29 1117.29 2020.66 1114.63 1966 1104C1926.45 1096.31 1904.29 1091.83 1864.5 1085.5C1824.41 1079.12 1801.99 1074.34 1761.5 1071.5C1717.87 1068.44 1693.21 1073.03 1649.5 1071.5C1605.79 1069.97 1570.88 1062.4 1513.5 1055.5C1457.76 1048.79 1415.35 1046.45 1360 1037C1305.41 1027.68 1274.76 1022.6 1220.5 1011.5C1165.97 1000.35 1136.83 986.044 1081.5 980C1028.7 974.233 998.558 977.63 945.5 980C869.759 983.383 850.961 982.669 775.5 990C730.034 994.417 719.135 992.045 673.5 990C642.988 988.633 612.542 990 582 990Z"
+                    fill="#FFF6D6"
+                  />
+                  <path
+                    id="faculty_area1"
+                    d="M2304.74 1568.44C2286.03 1559.14 2210.67 1443.83 2222.19 1425.7C2233.71 1407.56 2287.61 1370.33 2337.57 1360.93C2376.76 1353.56 2401.33 1359.14 2440.37 1351.06C2504.7 1337.74 2517.43 1291.33 2581.04 1275.73C2692 1248.5 2874 1247 2929.28 1264.82C3000.96 1287.92 2982.2 1330.81 3056.67 1339.63C3107.79 1345.68 3145.94 1321.11 3196.35 1331.32C3246.77 1341.52 3327.12 1397.35 3318.34 1434.53C3314.06 1452.6 3133.54 1497.23 3014.86 1492.37C2906.35 1487.93 2847.5 1410.36 2739.91 1425.7C2677.94 1434.53 2559.89 1467.43 2511.2 1467.43C2432.02 1467.43 2323.46 1577.74 2304.74 1568.44Z"
+                    fill="#FFF6D6"
+                  />
+                </g>
+                <g id="Girls_Hostel">
+                  <path
+                    id="B16"
+                    d="M2382 956L2174.5 938.5L2166 1091L2403.5 1060L2382 956Z"
+                    fill="#A682B9"
+                  />
+                  <path
+                    id="B21"
+                    d="M2784.5 731.5L2605.5 769L2644.5 881.5L2977.5 824.5L2784.5 731.5Z"
+                    fill="#A682B9"
+                  />
+                  <path
+                    id="B22"
+                    d="M2955.5 863.5L2696.5 922L2746.5 1028L2984 938.5L2955.5 863.5Z"
+                    fill="#A682B9"
+                  />
+                  <path
+                    id="B20"
+                    d="M2671 919.5C2602.33 932.333 2415.8 945.3 2403 950.5L2420 1056.5L2726.5 1029L2671 919.5Z"
+                    fill="#A682B9"
+                  />
+                </g>
+                <g id="Boys_Hostel">
+                  <path
+                    id="B8"
+                    d="M1754 905.5H1628V1004.5H1810.5L1905.5 905.5L1851 834L1754 905.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B15"
+                    d="M2333 535H2059V626L2322 642L2333 535Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B10"
+                    d="M1409 619H1149.5V723.5L1399.5 718L1409 619Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B12"
+                    d="M1725 576.5L1450 623L1440 745L1738.5 659.5L1725 576.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B26"
+                    d="M746.5 614L443 720L502 826.5L779.5 720L1112.5 708V614H746.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B18"
+                    d="M2036.5 630.5V535L1899.25 551.75L1762 568.5L1768 650L2036.5 630.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B14"
+                    d="M2790 577H2540.5L2576 692L2800 663L2790 577Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B13"
+                    d="M3039 635L2836 579L2819.5 671L3027.5 768.5L3039 635Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B23"
+                    d="M2558 860.5L2274 850L2300.5 767.5L2567.5 772.5L2558 860.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B19"
+                    d="M2231 807L1923 781.5L1946 679L2268 702.5L2231 807Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B11"
+                    d="M1847.5 783L1531.5 867L1496.5 768L1833.5 687L1847.5 783Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B17"
+                    d="M855.5 819.5L1101 852V941H886L855.5 819.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B9"
+                    d="M1592.5 895.5H1344.5V986L1592.5 1008.5V895.5Z"
+                    fill="#FFAB76"
+                  />
+                  <path
+                    id="B24"
+                    d="M815.5 782L559 875.5V960L865 943L815.5 782Z"
+                    fill="#FFAB76"
+                  />
+                </g>
+                <g id="Academic_Block">
+                  <g id="Central_Library">
+                    <path
+                      id="Library"
+                      d="M1605.5 352C1661.56 352 1707 397.443 1707 453.5C1707 509.557 1661.56 555 1605.5 555C1549.44 555 1504 509.557 1504 453.5C1504 397.443 1549.44 352 1605.5 352Z"
+                      fill="#FFD700"
+                    />
+                  </g>
+                  <path
+                    id="A14"
+                    d="M2340.5 182L1710.5 260L1732.5 393.5L2361.5 322L2340.5 182Z"
+                    fill="#FFD700"
+                  />
+                  <g id="A9">
+                    <path
+                      id="A9"
+                      d="M3222 244C3283.86 244 3334 294.144 3334 356C3334 417.856 3283.86 468 3222 468C3160.14 468 3110 417.856 3110 356C3110 294.144 3160.14 244 3222 244Z"
+                      fill="#FFD700"
+                    />
+                  </g>
+                  <path
+                    id="A13"
+                    d="M2320.06 361L1750.5 433L1764 526L2332 462L2320.06 361Z"
+                    fill="#FFD700"
+                  />
+                  <path
+                    id="A10"
+                    d="M3171 486L2503 369V486L3171 583V486Z"
+                    fill="#FFD700"
+                  />
+                  <path
+                    id="A11"
+                    d="M2392 312L2378 184L3083 282L3039 408.5L2392 312Z"
+                    fill="#FFD700"
+                  />
+                  <rect
+                    id="A17"
+                    x="920"
+                    y="419"
+                    width="528"
+                    height="164"
+                    fill="#FFD700"
+                  />
+                  <rect
+                    id="A18"
+                    x="935"
+                    y="228"
+                    width="534"
+                    height="149"
+                    fill="#FFD700"
+                  />
+                  <g id="A19">
+                    <path
+                      id="A19"
+                      d="M755 361C815.751 361 865 410.249 865 471C865 531.751 815.751 581 755 581C694.249 581 645 531.751 645 471C645 410.249 694.249 361 755 361Z"
+                      fill="#FFD700"
+                    />
+                  </g>
+                </g>
+                <g id="Mess">
+                  <path
+                    id="Oak_Mess"
+                    d="M1319 855.5C1319 904.377 1279.38 944 1230.5 944C1181.62 944 1142 904.377 1142 855.5C1142 806.623 1181.62 767 1230.5 767C1279.38 767 1319 806.623 1319 855.5Z"
+                    fill="#66C2A5"
+                  />
+                  <path
+                    id="Pine_Mess"
+                    d="M2522 657C2522 701.183 2486.18 737 2442 737C2397.82 737 2362 701.183 2362 657C2362 612.817 2397.82 577 2442 577C2486.18 577 2522 612.817 2522 657Z"
+                    fill="#66C2A5"
+                  />
+                  <path
+                    id="Tulsi_Mess"
+                    d="M2469 422C2469 455.689 2441.69 483 2408 483C2374.31 483 2347 455.689 2347 422C2347 388.311 2374.31 361 2408 361C2441.69 361 2469 388.311 2469 422Z"
+                    fill="#66C2A5"
+                  />
+                  <path
+                    id="Peepal_Mess"
+                    d="M475.814 920.284C452.897 900.837 282.712 850.432 258.097 884.564C233.481 918.696 241.12 999.66 241.12 999.66C241.12 999.66 475.814 1071.89 475.814 1059.59C475.814 1047.29 498.732 939.731 475.814 920.284Z"
+                    fill="#66C2A5"
+                  />
+                </g>
+                <g id="Village_Square">
+                  <path
+                    id="Sports_Complex"
+                    d="M3240 938C3220 953.5 3059 881 3051.5 866C3044 851 3073.5 651 3089.5 632.5C3105.5 614 3317 632.5 3329.5 632.5C3342 632.5 3380 828 3368.5 842.5C3357 857 3311.69 857.589 3284 881C3262.52 899.154 3260 922.5 3240 938Z"
+                    fill="#D9D9D9"
+                  />
+                  <path
+                    id="CV_Raman_Guest_House"
+                    d="M3243 1099.5C3219.98 1054.72 3253.5 985 3227.5 971.5C3201.5 958 3083.5 900.5 3068 913.5C3052.5 926.5 3025.5 1058 3032.5 1069C3041.63 1083.34 3221 1283 3221 1283L3358.5 1380L3435 1313L3410.5 1206.5C3410.5 1206.5 3351.21 1196.67 3319 1177.5C3282.45 1155.75 3262.45 1137.32 3243 1099.5Z"
+                    fill="#D9D9D9"
+                  />
+                  <path
+                    id="Audi"
+                    d="M3606 641C3606 641 3463.5 878.5 3461 894.5C3458.5 910.5 3479.5 985 3479.5 985C3479.5 985 3491.5 1106 3491.5 1125.5C3491.5 1145 3443 1190.5 3443 1190.5C3427.99 1243.89 3499 1321 3499 1321L3788 1085L3606 641Z"
+                    fill="#D9D9D9"
+                  />
+                  <path
+                    id="Health_Centre"
+                    d="M3445 874.5L3383.5 844L3349 625L3586.5 610L3445 874.5Z"
+                    fill="#D9D9D9"
+                  />
+                  <path
+                    id="Bus_Stop"
+                    d="M3728.5 550.5L3623 593.5L3670.5 706L3779 660.5L3728.5 550.5Z"
+                    fill="#D9D9D9"
+                  />
+                </g>
+              </g>
+              <g id="Roads" style={{ pointerEvents: "none" }}>
+                <path
+                  id="roads"
+                  d="M198.5 1008.5L366.5 1057.5L504.5 1101.5M504.5 1101.5L844.5 1264.5L1284 1347L1553 1360L1818.5 1426L2079 1465.5L2185.5 1415M504.5 1101.5L515.25 973.5M2185.5 1415L2283 1611M2185.5 1415C2185.5 1415 2266.18 1351.54 2328 1340C2366.39 1332.83 2389.62 1347.23 2428 1340C2496.69 1327.07 2515.5 1278.5 2583 1250.5C2650.5 1222.5 2878.5 1222.5 2928.5 1237.5C2978.5 1252.5 2999.5 1325.5 3076.5 1325.5C3153.5 1325.5 3170 1304 3206.5 1293.5M2185.5 1415C2185.5 1415 2177.7 1378.33 2177.5 1354.5C2177.19 1317.77 2186.09 1297.75 2194.5 1262C2207.98 1204.72 2218.16 1172.95 2240.5 1118.5M2283 1611L2465 1501L2770.5 1447L3051 1531.5L3378.5 1447M2283 1611L2238 1662L1948.5 1698.5L1434 1662L1165 1752.5L899.5 1732.5M3378.5 1447L3357.5 1404M3378.5 1447L3811 1089.5L3611.5 594M3357.5 1404L3206.5 1293.5M3357.5 1404L3462 1317C3462 1317 3435.64 1231.95 3421 1184.5M3206.5 1293.5C3175.17 1230.08 3005.97 1055.48 3012 1074M3012 1074L2987.5 1059.5M3012 1074L3059.5 890M2987.5 1059.5L3031.5 878M2987.5 1059.5L2803.5 1045C2803.5 1045 2460.37 1089.8 2240.5 1118.5M3031.5 878L3059.5 890M3031.5 878L3039 829M3059.5 890L3254.5 965.5M2240.5 1118.5C2204.77 1116.74 2184.73 1115.76 2149 1114M3611.5 594C3611.5 594 3464.94 872.421 3446 898M3611.5 594L3180.5 616L3072 611M3446 898C3421.59 880.426 3408.35 866.673 3378.5 863C3338.45 858.072 3311.83 879.777 3283 908C3266.44 924.212 3254.5 965.5 3254.5 965.5M3446 898C3457.35 918.411 3457.13 930.156 3462 953C3470.52 992.969 3467.5 990.634 3467.5 1031.5C3467.5 1050.5 3477.79 1082.7 3474.5 1111.5C3470.56 1145.95 3446.38 1160.87 3421 1184.5M3254.5 965.5C3254.5 965.5 3246.37 1018.32 3254.5 1050.5C3263.89 1087.68 3272.92 1107.85 3300 1135C3321.99 1157.05 3322.52 1155.9 3351 1168.5C3370.99 1177.35 3399.5 1180.55 3421 1184.5M3072 611L2839.5 550.5H2512M3072 611L3039 829M3039 829L2803.5 878L2629.5 904.025M3039 829L2789.5 707L2579 744.5M2629.5 904.025L2428 926.5L2158 919.5M2629.5 904.025L2579 744.5M2158 919.5C2158 919.5 2152.51 1038.04 2149 1114M2158 919.5C2158 919.5 2030.31 906.092 1948.5 897.5M2158 919.5L2245 871.5L2285.47 750.5M2149 1114C2039.46 1092.33 1978.04 1080.17 1868.5 1058.5M1948.5 897.5C1923.31 858.252 1884 797 1884 797M1948.5 897.5C1917.26 960.374 1899.74 995.626 1868.5 1058.5M1884 797L1921 660M1884 797L1604 878H1361L1410.5 776M1921 660L2300 673.5M1921 660H1833.5L1410.5 776M2300 673.5L2285.47 750.5M2300 673.5H2339.5L2374.5 526M2285.47 750.5L2579 744.5M2579 744.5L2512 550.5M2374.5 526L2512 550.5M2374.5 526L2177 502.5L1738.5 550.5M1738.5 550.5L1487.5 593.364M1738.5 550.5L1724 414L2406 331.5L3026.5 440.5M1434 602.5L1416.19 734M1434 602.5H1126M1434 602.5L1487.5 593.364M1410.5 776C1410.5 776 1319.38 760.458 1261 750.5M1410.5 776L1416.19 734M1261 750.5C1208.28 760.458 1126 776 1126 776V962.5M1261 750.5C1321.6 744.056 1416.19 734 1416.19 734M1261 750.5C1208.28 745.063 1178.72 742.015 1126 736.578M1126 962.5H983.5L671.5 973.5H515.25M1126 962.5C1126 962.5 1256.05 1001.47 1341.5 1016.5C1442.87 1034.33 1501.4 1031.82 1604 1040C1707.22 1048.23 1765.21 1051.28 1868.5 1058.5M515.25 973.5L526 857.5L798.5 750.5L1101 734L1126 736.578M366.5 857.5L413 705.5L736.5 593.364L1126 602.5M1126 602.5C1126 602.5 1126 684.217 1126 736.578M1487.5 593.364V403H962.5"
+                  stroke="#D7ACAC"
+                  strokeOpacity="0.42"
+                  strokeWidth="10"
+                  fill="none"
                 />
-
+              </g>
+              <g id="Open_spaces" style={{ pointerEvents: "none" }}>
+                <g id="open_spaces1">
+                  <path
+                    d="M2132 950L1964 930.5L1922 1041.5L2117.5 1076L2132 950Z"
+                    fill="#D7FFD6"
+                  />
+                  <path
+                    d="M1922 804.5L1964 878.5L2155 895.5L2220 825L1922 804.5Z"
+                    fill="#D7FFD6"
+                  />
+                  <path
+                    d="M2360 871L2347.5 898H2519.5L2535 871H2360Z"
+                    fill="#D7FFD6"
+                  />
+                  <path
+                    d="M2980 952L2804 1024.5L2980 1041.5V952Z"
+                    fill="#D7FFD6"
+                  />
+                  <path
+                    d="M830 774.5L851 804.5L1094 841.5V758.5L830 774.5Z"
+                    fill="#D7FFD6"
+                  />
+                  <path
+                    d="M3436 913C3422.03 895.253 3410.48 885.218 3388.5 880C3357.62 872.668 3334.85 883.553 3311 904.5C3290.06 922.889 3284.91 940.637 3277.5 967.5C3268.47 1000.25 3266.96 1022.2 3277.5 1054.5C3288.69 1088.81 3304.77 1106.16 3333.5 1128C3357.71 1146.4 3374.69 1166.05 3404.5 1160C3429.08 1155.01 3446 1142.43 3453.5 1118.5C3466.5 1077 3458.6 1046.6 3453.5 1001C3449.61 966.178 3457.68 940.53 3436 913Z"
+                    fill="#D7FFD6"
+                  />
+                  <path
+                    d="M1399 856.5L1422 804.5L1483.5 790L1509 856.5H1399Z"
+                    fill="#D7FFD6"
+                  />
+                </g>
+                <path
+                  id="open_spaces2"
+                  d="M571.255 1170.99C509.552 1105.47 229.206 1008.02 148.46 1059.44C67.7135 1110.86 50.6567 1646.15 107.039 1699.81C163.421 1753.46 854 1733.5 860.5 1732.5C867 1731.5 901.604 1736.61 787 1619.5C672.396 1502.39 632.958 1236.51 571.255 1170.99Z"
+                  fill="#D7FFD6"
+                  stroke="#D7ACAC"
+                />
+                <path
+                  id="open_spaces3"
+                  d="M371.5 665.5C318.182 704.336 354 833.5 354 833.5C354 833.5 321.5 880.499 204 869C86.5 857.5 165 313.5 240.5 219C316 124.5 730.5 142.5 885 219C929.271 240.921 913.305 305.011 885 345.5C840.435 409.248 757.542 277.181 688.5 313C598.829 359.52 633 540 633 540C633 540 452.5 606.5 371.5 665.5Z"
+                  fill="#D7FFD6"
+                />
+                <path
+                  id="open_spaces4"
+                  d="M3200 490C3185.5 497.11 3167 515 3185.5 561C3204 607 3514.29 608.03 3670 561C3699 552.241 3733.37 525.077 3743 544C3757 571.5 3803.5 667.5 3803.5 667.5C3803.5 667.5 3697 697 3683.5 724C3670 751 3752 866.5 3761 899C3770 931.5 3793 1022.5 3820.5 1052C3848 1081.5 3918.36 993.184 3948.5 931.5C3975.31 876.616 3970.97 837.567 3969.5 776.5C3967.53 694.971 3920.5 573.5 3920.5 573.5C3920.5 573.5 3901.36 412.524 3853.5 323.5C3816.26 254.231 3797.95 201.952 3728 166C3669.71 136.041 3626.79 139.364 3561.5 145C3472.85 152.652 3397.69 153.701 3349.5 228.5C3298.86 307.098 3367.5 356.5 3335.5 410.5C3301.25 468.3 3252 464.5 3200 490Z"
+                  fill="#D7FFD6"
+                />
+              </g>
+              <g id="Text_Labels" style={{ pointerEvents: "none" }}>
                 <text
-                  x={b.x + b.width / 2}
-                  y={b.y + b.height / 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  pointerEvents="none"
-                  fontWeight="bold"
-                  fontSize="16"
+                  id="B15_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
                 >
-                  {b.name}
+                  <tspan x="2114.59" y="610.773">
+                    B15
+                  </tspan>
+                </text>
+                <text
+                  id="Health Centre"
+                  fill="#030303"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="40"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="3377.8" y="693.545">
+                    Health{" "}
+                  </tspan>
+                  <tspan x="3375.52" y="741.545">
+                    Centre
+                  </tspan>
+                </text>
+                <text
+                  id="B20_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2488.28" y="1015.77">
+                    B20&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B16_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2209.09" y="1035.77">
+                    B16&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B22_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2759.31" y="974.773">
+                    B22&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B21_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2704.81" y="828.773">
+                    B21&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="Faculty Area"
+                  fill="#272525"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2555.75" y="1375.77">
+                    Faculty Area
+                  </tspan>
+                </text>
+                <text
+                  id="Faculty Area_2"
+                  fill="#272525"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1163.75" y="1194.77">
+                    Faculty Area
+                  </tspan>
+                </text>
+                <text
+                  id="Faculty Area_3"
+                  fill="#272525"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1141.75" y="1527.77">
+                    Faculty Area
+                  </tspan>
+                </text>
+                <text
+                  id="Faculty Area_4"
+                  fill="#272525"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2502.75" y="1182.77">
+                    Faculty Area
+                  </tspan>
+                </text>
+                <text
+                  id="Peepal Mess"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="40"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="296.598" y="950.545">
+                    Peepal{" "}
+                  </tspan>
+                  <tspan x="310.328" y="998.545">
+                    Mess
+                  </tspan>
+                </text>
+                <text
+                  id="Tulsi Mess"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="40"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2366.38" y="416.545">
+                    Tulsi{" "}
+                  </tspan>
+                  <tspan x="2359.33" y="464.545">
+                    Mess
+                  </tspan>
+                </text>
+                <text
+                  id="B26_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="727.594" y="696.773">
+                    B26
+                  </tspan>
+                </text>
+                <text
+                  id="Oak Mess"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="40"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1185.61" y="845.545">
+                    Oak{" "}
+                  </tspan>
+                  <tspan x="1172.33" y="893.545">
+                    Mess
+                  </tspan>
+                </text>
+                <text
+                  id="B9_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1406.22" y="966.773">
+                    B9
+                  </tspan>
+                </text>
+                <text
+                  id="A18_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1126.88" y="325.773">
+                    A18
+                  </tspan>
+                </text>
+                <text
+                  id="B23_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2379.31" y="839.773">
+                    B23&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B19_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2032.09" y="767.773">
+                    B19&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B13_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2864.81" y="681.773">
+                    B13&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B14_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2609.5" y="650.773">
+                    B14&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="B18_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1833.25" y="616.773">
+                    B18
+                  </tspan>
+                </text>
+                <text
+                  id="B11_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1598.31" y="798.773">
+                    B11
+                  </tspan>
+                </text>
+                <text
+                  id="B8_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1720.38" y="969.773">
+                    B8
+                  </tspan>
+                </text>
+                <text
+                  id="B17_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="904.906" y="910.773">
+                    B17
+                  </tspan>
+                </text>
+                <text
+                  id="B24_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="651.5" y="907.773">
+                    B24
+                  </tspan>
+                </text>
+                <text
+                  id="B12_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1511.81" y="670.773">
+                    B12
+                  </tspan>
+                </text>
+                <text
+                  id="B10_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1208.78" y="688.773">
+                    B10
+                  </tspan>
+                </text>
+                <text
+                  id="A19_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="698.219" y="500.773">
+                    A19&#10;
+                  </tspan>
+                </text>
+                <text
+                  id="A17_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1129.03" y="529.773">
+                    A17
+                  </tspan>
+                </text>
+                <text
+                  id="A11_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2666.44" y="312.773">
+                    A11
+                  </tspan>
+                </text>
+                <text
+                  id="Library"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="45"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1530.44" y="471.364">
+                    Library
+                  </tspan>
+                </text>
+                <text
+                  id="A14_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1949.62" y="325.773">
+                    A14
+                  </tspan>
+                </text>
+                <text
+                  id="A13_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="1964.94" y="470.773">
+                    A13
+                  </tspan>
+                </text>
+                <text
+                  id="A10_2"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2759.41" y="505.773">
+                    A10
+                  </tspan>
+                </text>
+                <text
+                  id="A9_2"
+                  fill="#070707"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="64"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="3178.75" y="368.773">
+                    A9
+                  </tspan>
+                </text>
+                <text
+                  id="Sports Complex"
+                  fill="#010101"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="48"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="3138.14" y="725.455">
+                    Sports{" "}
+                  </tspan>
+                  <tspan x="3113.32" y="783.455">
+                    Complex
+                  </tspan>
+                </text>
+                <text
+                  id="CV Raman Guest House"
+                  transform="translate(3127.59 992) rotate(45)"
+                  fill="#060606"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="40"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="4.03516" y="38.5455">
+                    CV Raman Guest{" "}
+                  </tspan>
+                  <tspan x="104.211" y="86.5455">
+                    House
+                  </tspan>
+                </text>
+                <text
+                  id="Audi_2"
+                  transform="translate(3509 965)"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="75"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="23.6279" y="72.7727">
+                    Audi
+                  </tspan>
+                </text>
+                <text
+                  id="Pine Mess"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="40"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="2399.04" y="654.545">
+                    Pine{" "}
+                  </tspan>
+                  <tspan x="2389.33" y="702.545">
+                    Mess
+                  </tspan>
+                </text>
+                <text
+                  id="Bus Stop"
+                  fill="black"
+                  xmlSpace="preserve"
+                  fontFamily="Inter"
+                  fontSize="24"
+                  fontStyle="italic"
+                  fontWeight="500"
+                  letterSpacing="0em"
+                >
+                  <tspan x="3675.58" y="626.227">
+                    Bus{" "}
+                  </tspan>
+                  <tspan x="3670.23" y="655.227">
+                    Stop
+                  </tspan>
                 </text>
               </g>
-            ))}
+              <g id="Event_Bubbles">
+                {Object.entries(events).map(([buildingId, evts]) => {
+                  if (!evts || evts.length === 0) return null;
 
-            {hoveredBuilding && (
-              <g>
-                <rect
-                  x={hoveredBuilding.x}
-                  y={hoveredBuilding.y - 32}
-                  rx="6"
-                  ry="6"
-                  width="160"
-                  height="28"
-                  fill="#333"
-                  opacity="0.9"
-                />
-                <text
-                  x={hoveredBuilding.x + 8}
-                  y={hoveredBuilding.y - 12}
-                  fill="white"
-                  fontSize="12"
-                >
-                  {events[hoveredBuilding.id]?.length
-                    ? `${events[hoveredBuilding.id].length} upcoming events`
-                    : "No upcoming events"}
-                </text>
+                  const el = document.getElementById(buildingId);
+                  if (!el) return null;
+
+                  const bbox = el.getBBox();
+                  const centerX = bbox.x + bbox.width / 2;
+                  const centerY = bbox.y + bbox.height / 2 - 20;
+
+                  return (
+                    <g key={buildingId}>
+                      <g transform={`translate(${centerX}, ${centerY})`}>
+                        {/* Main pin body - rounded top with point at bottom */}
+                        <path
+                          d="M0,-35 C-12,-35 -20,-27 -20,-15 C-20,-5 0,15 0,15 C0,15 20,-5 20,-15 C20,-27 12,-35 0,-35 Z"
+                          fill="#EA4335"
+                          stroke="white"
+                          strokeWidth="2.5"
+                          filter="drop-shadow(0 3px 6px rgba(0,0,0,0.35))"
+                        />
+
+                        {/* Inner white circle */}
+                        <circle cx="0" cy="-18" r="16" fill="white" />
+
+                        {/* Event count number */}
+                        <text
+                          x="0"
+                          y="-15"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#EA4335"
+                          fontSize="24"
+                          fontWeight="700"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {evts.length}
+                        </text>
+                      </g>
+                    </g>
+                  );
+                })}
               </g>
-            )}
+            </g>
           </svg>
         </div>
 
@@ -750,6 +1623,11 @@ const NorthCampus = () => {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
+                            {" - "}
+                            {new Date(evt.endTime).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
                         </div>
 
@@ -768,6 +1646,9 @@ const NorthCampus = () => {
                                 new Date(evt.startTime)
                                   .toTimeString()
                                   .slice(0, 5)
+                              );
+                              setEventEndTime(
+                                new Date(evt.endTime).toTimeString().slice(0, 5)
                               );
                               setEventColor(evt.color);
                               setShowEventModal(true);
@@ -794,7 +1675,7 @@ const NorthCampus = () => {
               <button
                 className="add-event-btn"
                 onClick={() => {
-                  setEditingEvent(null); // add mode
+                  resetEventForm(); // This clears all fields
                   setShowEventModal(true);
                 }}
               >
@@ -830,6 +1711,12 @@ const NorthCampus = () => {
                       value={eventTime}
                       onChange={(e) => setEventTime(e.target.value)}
                     />
+                    <input
+                      type="time"
+                      placeholder="End time"
+                      value={eventEndTime}
+                      onChange={(e) => setEventEndTime(e.target.value)}
+                    />
 
                     <label className="color-picker">
                       Event color
@@ -843,7 +1730,10 @@ const NorthCampus = () => {
                     <div className="event-modal-actions">
                       <button
                         className="cancel-btn"
-                        onClick={() => setShowEventModal(false)}
+                        onClick={() => {
+                          resetEventForm();
+                          setShowEventModal(false);
+                        }}
                       >
                         Cancel
                       </button>
