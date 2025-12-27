@@ -79,6 +79,7 @@ const NorthCampus = () => {
 
   const [showMessMenu, setShowMessMenu] = useState(false);
   const [menuZoom, setMenuZoom] = useState(1);
+  const [eventSearchQuery, setEventSearchQuery] = useState("");
 
   const ZOOM_STEP = 0.2;
   const [minZoom, setMinZoom] = useState(0.15);
@@ -1814,72 +1815,116 @@ const NorthCampus = () => {
               )}
 
               <div className="modal-events">
-                <h3>📅 Events</h3>
+                <div className="events-header">
+                  <h3>📅 Events</h3>
+                  {(events[selectedBuilding.id] || []).length > 0 && (
+                    <div className="event-search-bar">
+                      <span className="event-search-icon">🔍</span>
+                      <input
+                        type="text"
+                        placeholder="Search events..."
+                        value={eventSearchQuery}
+                        onChange={(e) => setEventSearchQuery(e.target.value)}
+                        className="event-search-input"
+                      />
+                      {eventSearchQuery && (
+                        <button
+                          className="clear-search-btn"
+                          onClick={() => setEventSearchQuery("")}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {(events[selectedBuilding.id] || []).length === 0 ? (
                   <p className="empty-events">No events added yet.</p>
                 ) : (
-                  events[selectedBuilding.id].map((evt) => (
-                    <div
-                      key={evt.id}
-                      className="event-item"
-                      style={{ borderLeft: `6px solid ${evt.color}` }}
-                    >
-                      <div className="event-row">
-                        <div>
-                          <strong>{evt.title}</strong>
-                          <div className="event-meta">
-                            {new Date(evt.startTime).toLocaleDateString()} •{" "}
-                            {new Date(evt.startTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                            {" - "}
-                            {new Date(evt.endTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                  (() => {
+                    // Filter events based on search query
+                    const filteredEvents = (
+                      events[selectedBuilding.id] || []
+                    ).filter((evt) =>
+                      evt.title
+                        .toLowerCase()
+                        .includes(eventSearchQuery.toLowerCase())
+                    );
+
+                    return filteredEvents.length === 0 ? (
+                      <p className="empty-events">
+                        No events found matching "{eventSearchQuery}"
+                      </p>
+                    ) : (
+                      filteredEvents.map((evt) => (
+                        <div
+                          key={evt.id}
+                          className="event-item"
+                          style={{ borderLeft: `6px solid ${evt.color}` }}
+                        >
+                          <div className="event-row">
+                            <div>
+                              <strong>{evt.title}</strong>
+                              <div className="event-meta">
+                                {new Date(evt.startTime).toLocaleDateString()} •{" "}
+                                {new Date(evt.startTime).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
+                                {" - "}
+                                {new Date(evt.endTime).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="event-actions">
+                              <button
+                                className="edit-event-btn"
+                                onClick={() => {
+                                  setEditingEvent(evt);
+                                  setEventTitle(evt.title);
+                                  setEventDate(
+                                    new Date(evt.startTime)
+                                      .toISOString()
+                                      .split("T")[0]
+                                  );
+                                  setEventTime(
+                                    new Date(evt.startTime)
+                                      .toTimeString()
+                                      .slice(0, 5)
+                                  );
+                                  setEventEndTime(
+                                    new Date(evt.endTime)
+                                      .toTimeString()
+                                      .slice(0, 5)
+                                  );
+                                  setEventColor(evt.color);
+                                  setShowEventModal(true);
+                                }}
+                              >
+                                ✏️
+                              </button>
+
+                              <button
+                                className="delete-event-btn"
+                                onClick={() =>
+                                  handleDeleteEvent(selectedBuilding.id, evt.id)
+                                }
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="event-actions">
-                          <button
-                            className="edit-event-btn"
-                            onClick={() => {
-                              setEditingEvent(evt);
-                              setEventTitle(evt.title);
-                              setEventDate(
-                                new Date(evt.startTime)
-                                  .toISOString()
-                                  .split("T")[0]
-                              );
-                              setEventTime(
-                                new Date(evt.startTime)
-                                  .toTimeString()
-                                  .slice(0, 5)
-                              );
-                              setEventEndTime(
-                                new Date(evt.endTime).toTimeString().slice(0, 5)
-                              );
-                              setEventColor(evt.color);
-                              setShowEventModal(true);
-                            }}
-                          >
-                            ✏️
-                          </button>
-
-                          <button
-                            className="delete-event-btn"
-                            onClick={() =>
-                              handleDeleteEvent(selectedBuilding.id, evt.id)
-                            }
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                      ))
+                    );
+                  })()
                 )}
               </div>
 
