@@ -5,6 +5,8 @@ import { db } from "../firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "../firebase";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const BUILDING_META = {
   B8: { name: "B8 - Boys Hostel" },
@@ -71,11 +73,11 @@ const NorthCampus = () => {
 
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [eventTime, setEventTime] = useState("");
+  const [eventDate, setEventDate] = useState(new Date());
+  const [eventTime, setEventTime] = useState(new Date());
+  const [eventEndTimeDate, setEventEndTimeDate] = useState(new Date());
   const [eventColor, setEventColor] = useState("#1e90ff");
   const [editingEvent, setEditingEvent] = useState(null);
-  const [eventEndTime, setEventEndTime] = useState("");
 
   const [showMessMenu, setShowMessMenu] = useState(false);
   const [menuZoom, setMenuZoom] = useState(1);
@@ -117,9 +119,9 @@ const NorthCampus = () => {
   // Add this NEW function here (after useDebounce, before handleDeleteEvent)
   const resetEventForm = () => {
     setEventTitle("");
-    setEventDate("");
-    setEventTime("");
-    setEventEndTime("");
+    setEventDate(new Date());
+    setEventTime(new Date());
+    setEventEndTimeDate(new Date());
     setEventColor("#1e90ff");
     setEditingEvent(null);
     setEventError("");
@@ -274,13 +276,22 @@ const NorthCampus = () => {
   const handleAddEvent = () => {
     setEventError("");
 
-    if (!eventTitle || !eventDate || !eventTime) {
+    if (!eventTitle || !eventDate || !eventTime || !eventEndTimeDate) {
       setEventError("⚠️ Please fill all required fields");
       return;
     }
 
-    const startTime = new Date(`${eventDate}T${eventTime}`).getTime();
-    const endTime = new Date(`${eventDate}T${eventEndTime}`).getTime();
+    // Combine date and time properly
+    const startDateTime = new Date(eventDate);
+    startDateTime.setHours(eventTime.getHours());
+    startDateTime.setMinutes(eventTime.getMinutes());
+
+    const endDateTime = new Date(eventDate);
+    endDateTime.setHours(eventEndTimeDate.getHours());
+    endDateTime.setMinutes(eventEndTimeDate.getMinutes());
+
+    const startTime = startDateTime.getTime();
+    const endTime = endDateTime.getTime();
 
     if (endTime <= startTime) {
       setEventError("⚠️ End time must be after start time");
@@ -538,6 +549,7 @@ const NorthCampus = () => {
 
     zoomToBuilding(id);
     setShowBuildingModal(true);
+    setEventSearchQuery("");
   };
 
   return (
@@ -1889,21 +1901,14 @@ const NorthCampus = () => {
                                 onClick={() => {
                                   setEditingEvent(evt);
                                   setEventTitle(evt.title);
-                                  setEventDate(
-                                    new Date(evt.startTime)
-                                      .toISOString()
-                                      .split("T")[0]
-                                  );
-                                  setEventTime(
-                                    new Date(evt.startTime)
-                                      .toTimeString()
-                                      .slice(0, 5)
-                                  );
-                                  setEventEndTime(
-                                    new Date(evt.endTime)
-                                      .toTimeString()
-                                      .slice(0, 5)
-                                  );
+
+                                  // Set date and times properly
+                                  const startDate = new Date(evt.startTime);
+                                  const endDate = new Date(evt.endTime);
+
+                                  setEventDate(startDate);
+                                  setEventTime(startDate);
+                                  setEventEndTimeDate(endDate);
                                   setEventColor(evt.color);
                                   setShowEventModal(true);
                                 }}
@@ -1965,30 +1970,50 @@ const NorthCampus = () => {
                     </div>
 
                     <div className="input-group">
-                      <label className="input-label">Date</label>
-                      <input
-                        type="date"
-                        value={eventDate}
-                        onChange={(e) => setEventDate(e.target.value)}
+                      <label className="input-label">📅 Event Date</label>
+                      <DatePicker
+                        selected={eventDate}
+                        onChange={(date) => setEventDate(date)}
+                        dateFormat="MMMM d, yyyy"
+                        minDate={new Date()}
+                        className="custom-datepicker"
+                        calendarClassName="custom-calendar"
+                        wrapperClassName="datepicker-wrapper"
                       />
                     </div>
 
-                    <div className="input-group">
-                      <label className="input-label">Start Time</label>
-                      <input
-                        type="time"
-                        value={eventTime}
-                        onChange={(e) => setEventTime(e.target.value)}
-                      />
-                    </div>
+                    <div className="time-row">
+                      <div className="input-group">
+                        <label className="input-label">🕐 Start Time</label>
+                        <DatePicker
+                          selected={eventTime}
+                          onChange={(time) => setEventTime(time)}
+                          showTimeSelect
+                          showTimeSelectOnly
+                          timeIntervals={15}
+                          timeCaption="Time"
+                          dateFormat="h:mm aa"
+                          className="custom-timepicker"
+                          calendarClassName="custom-calendar"
+                          wrapperClassName="datepicker-wrapper"
+                        />
+                      </div>
 
-                    <div className="input-group">
-                      <label className="input-label">End Time</label>
-                      <input
-                        type="time"
-                        value={eventEndTime}
-                        onChange={(e) => setEventEndTime(e.target.value)}
-                      />
+                      <div className="input-group">
+                        <label className="input-label">🕐 End Time</label>
+                        <DatePicker
+                          selected={eventEndTimeDate}
+                          onChange={(time) => setEventEndTimeDate(time)}
+                          showTimeSelect
+                          showTimeSelectOnly
+                          timeIntervals={15}
+                          timeCaption="Time"
+                          dateFormat="h:mm aa"
+                          className="custom-timepicker"
+                          calendarClassName="custom-calendar"
+                          wrapperClassName="datepicker-wrapper"
+                        />
+                      </div>
                     </div>
 
                     <div className="color-picker">
