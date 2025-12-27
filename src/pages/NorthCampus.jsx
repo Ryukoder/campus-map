@@ -327,16 +327,99 @@ const NorthCampus = () => {
     setShowEventModal(false);
   };
 
-  const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
-  const zoomOut = () => setScale((p) => Math.max(p - ZOOM_STEP, minZoom));
+  const zoomIn = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    setScale((prev) => {
+      const next = Math.min(prev + ZOOM_STEP, MAX_ZOOM);
+
+      // Zoom towards center
+      const pointX = (centerX - translate.x) / prev;
+      const pointY = (centerY - translate.y) / prev;
+      let newX = centerX - pointX * next;
+      let newY = centerY - pointY * next;
+
+      // Calculate boundaries
+      const scaledW = SVG_WIDTH * next;
+      const scaledH = SVG_HEIGHT * next;
+      const minX =
+        rect.width > scaledW
+          ? (rect.width - scaledW) / 2
+          : Math.min(0, rect.width - scaledW);
+      const maxX = rect.width > scaledW ? (rect.width - scaledW) / 2 : 0;
+      const minY =
+        rect.height > scaledH
+          ? (rect.height - scaledH) / 2
+          : Math.min(0, rect.height - scaledH);
+      const maxY = rect.height > scaledH ? (rect.height - scaledH) / 2 : 0;
+
+      setTranslate({
+        x: Math.max(minX, Math.min(maxX, newX)),
+        y: Math.max(minY, Math.min(maxY, newY)),
+      });
+
+      return next;
+    });
+  };
+
+  const zoomOut = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    setScale((prev) => {
+      const next = Math.max(prev - ZOOM_STEP, minZoom);
+
+      // Zoom towards center
+      const pointX = (centerX - translate.x) / prev;
+      const pointY = (centerY - translate.y) / prev;
+      let newX = centerX - pointX * next;
+      let newY = centerY - pointY * next;
+
+      // Calculate boundaries
+      const scaledW = SVG_WIDTH * next;
+      const scaledH = SVG_HEIGHT * next;
+      const minX =
+        rect.width > scaledW
+          ? (rect.width - scaledW) / 2
+          : Math.min(0, rect.width - scaledW);
+      const maxX = rect.width > scaledW ? (rect.width - scaledW) / 2 : 0;
+      const minY =
+        rect.height > scaledH
+          ? (rect.height - scaledH) / 2
+          : Math.min(0, rect.height - scaledH);
+      const maxY = rect.height > scaledH ? (rect.height - scaledH) / 2 : 0;
+
+      setTranslate({
+        x: Math.max(minX, Math.min(maxX, newX)),
+        y: Math.max(minY, Math.min(maxY, newY)),
+      });
+
+      return next;
+    });
+  };
 
   const filteredBuildings = Object.entries(BUILDING_META).filter(([, b]) =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const resetView = () => {
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
+    if (!containerRef.current) return;
+
+    const container = containerRef.current.getBoundingClientRect();
+    const scaleX = container.width / SVG_WIDTH;
+    const scaleY = container.height / SVG_HEIGHT;
+    const initialScale = Math.min(scaleX, scaleY) * 0.95;
+
+    setScale(initialScale);
+    setTranslate({
+      x: (container.width - SVG_WIDTH * initialScale) / 2,
+      y: (container.height - SVG_HEIGHT * initialScale) / 2,
+    });
     setSelectedBuilding(null);
   };
 
@@ -395,18 +478,34 @@ const NorthCampus = () => {
 
     setScale((prev) => {
       const next = Math.min(Math.max(prev + delta, minZoom), MAX_ZOOM);
+
+      // Calculate the point in the SVG coordinate system
       const pointX = (mouseX - translate.x) / prev;
       const pointY = (mouseY - translate.y) / prev;
-      const newX = mouseX - pointX * next;
-      const newY = mouseY - pointY * next;
+
+      // Calculate new translation to keep the point under the mouse
+      let newX = mouseX - pointX * next;
+      let newY = mouseY - pointY * next;
+
+      // Calculate boundaries
       const scaledW = SVG_WIDTH * next;
       const scaledH = SVG_HEIGHT * next;
-      const minX = Math.min(0, rect.width - scaledW);
-      const minY = Math.min(0, rect.height - scaledH);
+
+      // Allow map to be centered when smaller than viewport
+      const minX =
+        rect.width > scaledW
+          ? (rect.width - scaledW) / 2
+          : Math.min(0, rect.width - scaledW);
+      const maxX = rect.width > scaledW ? (rect.width - scaledW) / 2 : 0;
+      const minY =
+        rect.height > scaledH
+          ? (rect.height - scaledH) / 2
+          : Math.min(0, rect.height - scaledH);
+      const maxY = rect.height > scaledH ? (rect.height - scaledH) / 2 : 0;
 
       setTranslate({
-        x: Math.max(minX, Math.min(0, newX)),
-        y: Math.max(minY, Math.min(0, newY)),
+        x: Math.max(minX, Math.min(maxX, newX)),
+        y: Math.max(minY, Math.min(maxY, newY)),
       });
 
       return next;
