@@ -1,0 +1,24 @@
+/* Mobile Sidebar Adjustments */
+@media (max-width: 640px) {
+  /* Make sidebar slightly narrower on mobile */
+  .sidebar-panel {
+    width: 280px !important;
+  }
+
+  /* Adjust toggle button */
+  .sidebar-toggle {
+    top: 12px !important;
+    left: 12px !important;
+  }
+
+  /* Make menu items easier to tap */
+  .sidebar-item {
+    padding: 14px 16px !important;
+    font-size: 15px !important;
+  }
+
+  /* Make logout button more prominent */
+  .sidebar-logout {
+    padding: 14px !important;
+  }
+}

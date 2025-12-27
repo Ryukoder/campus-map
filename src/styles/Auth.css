@@ -11,7 +11,7 @@
   position: relative; /* Critical for the overlay to work */
 
   /* Background Image */
-  background-image: url('https://upload.wikimedia.org/wikipedia/commons/3/34/North_Campus,_IIT_Mandi_from_Griffon_Peak_Jan_2020_D35_0117.jpg');
+  background-image: url("https://upload.wikimedia.org/wikipedia/commons/3/34/North_Campus,_IIT_Mandi_from_Griffon_Peak_Jan_2020_D35_0117.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -21,7 +21,7 @@
 .login-page::before {
   content: "";
   position: absolute;
-  top: 0; 
+  top: 0;
   left: 0;
   width: 100%;
   height: 100%;
@@ -34,13 +34,13 @@
 .login-card {
   position: relative; /* Ensures card is above the overlay */
   z-index: 10;
-  
+
   width: 360px;
   background: white;
   padding: 40px 30px;
   border-radius: 20px;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3); /* Added shadow for pop */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); /* Added shadow for pop */
 }
 
 .login-title {
@@ -147,7 +147,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('https://upload.wikimedia.org/wikipedia/commons/3/34/North_Campus,_IIT_Mandi_from_Griffon_Peak_Jan_2020_D35_0117.jpg');
+  background-image: url("https://upload.wikimedia.org/wikipedia/commons/3/34/North_Campus,_IIT_Mandi_from_Griffon_Peak_Jan_2020_D35_0117.jpg");
   background-size: cover;
   background-position: center;
   z-index: 1;
@@ -172,7 +172,7 @@
   border-radius: 20px;
   width: 360px;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .dashboard-title {
@@ -239,4 +239,87 @@
   background: white;
   color: black;
   border-color: white;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================
+   MOBILE RESPONSIVENESS FOR LOGIN/SIGNUP
+   ========================================= */
+
+@media (max-width: 640px) {
+  .login-card,
+  .login-page > div {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 0 10px;
+  }
+
+  .login-page > div > div:first-child {
+    padding: 30px 20px !important;
+  }
+
+  .login-page > div > div:first-child h1 {
+    font-size: 22px !important;
+    letter-spacing: 1px !important;
+  }
+
+  .login-page > div > div:first-child p {
+    font-size: 11px !important;
+  }
+
+  .login-page > div > div:nth-child(2) {
+    padding: 20px !important;
+  }
+
+  .login-input {
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+
+  .login-button {
+    padding: 14px !important;
+    font-size: 15px !important;
+  }
+
+  .login-options {
+    font-size: 12px !important;
+  }
+
+  .signup-text {
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* ... existing login styles ... */
+
+  .dashboard-card {
+    width: 90% !important;
+    max-width: 340px !important;
+    padding: 30px 20px !important;
+  }
+
+  .dashboard-title {
+    font-size: 20px !important;
+  }
+
+  .campus-btn {
+    font-size: 14px !important;
+    padding: 12px !important;
+  }
+
+  .dashboard-container .logout-btn {
+    top: 16px !important;
+    right: 16px !important;
+    padding: 6px 16px !important;
+    font-size: 14px !important;
+  }
 }

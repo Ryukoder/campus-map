@@ -16,6 +16,9 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
 
   const navigate = useNavigate();
 
@@ -61,15 +64,18 @@ const Login = () => {
   };
 
   const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Please enter your email first to reset password.");
+    setResetMessage("");
+
+    if (!resetEmail) {
+      setResetMessage("⚠️ Please enter your email address");
       return;
     }
+
     try {
-      await sendPasswordResetEmail(auth, email);
-      setError("Password reset link sent! Check your email inbox.");
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetMessage("✅ Password reset link sent! Check your email inbox.");
     } catch (err) {
-      setError("Error: " + err.message);
+      setResetMessage("❌ Error: " + err.message);
     }
   };
 
@@ -93,10 +99,10 @@ const Login = () => {
           backgroundColor: "white",
           borderRadius: "20px",
           boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-          width: "100%",
+          width: "90%", // Changed from 100%
           maxWidth: "400px",
           overflow: "hidden",
-          position: "relative", // Ensure it sits above overlay
+          position: "relative",
           zIndex: 30,
         }}
         className="animate-fade-in-up"
@@ -225,7 +231,7 @@ const Login = () => {
                 Remember me
               </label>
               <span
-                onClick={handleForgotPassword}
+                onClick={() => setShowForgotPassword(true)}
                 style={{
                   color: "#000",
                   fontWeight: "bold",
@@ -237,7 +243,28 @@ const Login = () => {
               </span>
             </div>
 
-            {error && <p className="error-text">{error}</p>}
+            {error && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  backgroundColor: error.includes("reset link sent")
+                    ? "rgba(16, 185, 129, 0.1)"
+                    : "rgba(239, 68, 68, 0.1)",
+                  border: error.includes("reset link sent")
+                    ? "2px solid rgba(16, 185, 129, 0.3)"
+                    : "2px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "12px",
+                  color: error.includes("reset link sent")
+                    ? "#059669"
+                    : "#dc2626",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  marginBottom: "10px",
+                }}
+              >
+                {error}
+              </div>
+            )}
 
             {/* Sign In Button - CHANGED FROM BLUE TO BLACK */}
             <button
@@ -245,7 +272,7 @@ const Login = () => {
               disabled={loading}
               style={{
                 width: "100%",
-                backgroundColor: "#222", // BLACK
+                backgroundColor: loading ? "#555" : "#222",
                 color: "white",
                 fontWeight: "bold",
                 padding: "16px",
@@ -256,10 +283,42 @@ const Login = () => {
                 fontSize: "16px",
                 marginTop: "10px",
                 transition: "background 0.3s",
+                height: "56px",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
-              onMouseOver={(e) => (e.target.style.backgroundColor = "#000")} // Darker black on hover
-              onMouseOut={(e) => (e.target.style.backgroundColor = "#222")}
+              onMouseOver={(e) =>
+                !loading && (e.target.style.backgroundColor = "#000")
+              }
+              onMouseOut={(e) =>
+                !loading && (e.target.style.backgroundColor = "#222")
+              }
             >
+              {loading && (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  style={{
+                    animation: "spin 1s linear infinite",
+                    position: "absolute",
+                    left: "20px",
+                  }}
+                >
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="6"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeDasharray="10 28"
+                    fill="none"
+                  />
+                </svg>
+              )}
               {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
@@ -287,6 +346,121 @@ const Login = () => {
           </div>
         </div>
       </div>
+      {showForgotPassword && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setShowForgotPassword(false);
+            setResetMessage("");
+            setResetEmail("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "20px",
+              padding: "32px",
+              width: "90%",
+              maxWidth: "400px",
+              boxShadow: "0 32px 80px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                marginBottom: "20px",
+                fontSize: "22px",
+                fontWeight: "700",
+              }}
+            >
+              Reset Password
+            </h2>
+
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                backgroundColor: "#f9f9f9",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            />
+
+            {resetMessage && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  backgroundColor: resetMessage.includes("✅")
+                    ? "rgba(16, 185, 129, 0.1)"
+                    : "rgba(239, 68, 68, 0.1)",
+                  border: resetMessage.includes("✅")
+                    ? "2px solid rgba(16, 185, 129, 0.3)"
+                    : "2px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "12px",
+                  color: resetMessage.includes("✅") ? "#059669" : "#dc2626",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  marginBottom: "16px",
+                }}
+              >
+                {resetMessage}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setResetMessage("");
+                  setResetEmail("");
+                }}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: "1px solid #ddd",
+                  backgroundColor: "white",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleForgotPassword}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: "none",
+                  backgroundColor: "#222",
+                  color: "white",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                }}
+              >
+                Send Reset Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

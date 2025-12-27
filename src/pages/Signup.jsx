@@ -13,6 +13,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -40,6 +41,8 @@ const Signup = () => {
       return;
     }
 
+    setLoading(true); // 👈 START LOADING
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -49,10 +52,18 @@ const Signup = () => {
 
       await sendEmailVerification(userCredential.user);
 
-      alert("Verification Email Sent, Please Verify and Login");
-      navigate("/");
+      setError(
+        "✅ Verification email sent! Please check your inbox and verify before logging in."
+      );
+
+      // Auto-redirect after 3 seconds
+      setTimeout(() => {
+        navigate("/");
+      }, 3000);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false); // 👈 STOP LOADING (whether success or error)
     }
   };
 
@@ -85,10 +96,32 @@ const Signup = () => {
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
 
-        {error && <p className="error-text">{error}</p>}
+        {error && (
+          <p
+            className="error-text"
+            style={{
+              color: error.includes("✅") ? "#10b981" : "#ef4444",
+              backgroundColor: error.includes("✅")
+                ? "rgba(16, 185, 129, 0.1)"
+                : "rgba(239, 68, 68, 0.1)",
+              padding: "10px",
+              borderRadius: "8px",
+            }}
+          >
+            {error}
+          </p>
+        )}
 
-        <button className="login-button" onClick={handleSignup}>
-          Sign Up
+        <button
+          className="login-button"
+          onClick={handleSignup}
+          disabled={loading}
+          style={{
+            opacity: loading ? 0.7 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading ? "Creating Account..." : "Sign Up"}
         </button>
 
         <p className="signup-text">

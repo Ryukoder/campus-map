@@ -45,6 +45,7 @@ const BUILDING_META = {
   Sports_Complex: { name: "Sports Complex" },
   Health_Centre: { name: "Health Centre" },
   Bus_Stop: { name: "Bus Stop" },
+  CV_Raman_Guest_House: { name: "CV Raman Guest House" },
 };
 
 const SVG_WIDTH = 4029;
@@ -57,6 +58,7 @@ const NorthCampus = () => {
   const DEFAULT_EVENT_DURATION_MIN = 60;
   const [user] = useAuthState(auth);
   const dragDistance = useRef(0);
+  const [eventError, setEventError] = useState("");
 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [scale, setScale] = useState(0.3);
@@ -116,6 +118,7 @@ const NorthCampus = () => {
     setEventEndTime("");
     setEventColor("#1e90ff");
     setEditingEvent(null);
+    setEventError("");
   };
 
   const handleDeleteEvent = (buildingId, eventId) => {
@@ -265,8 +268,10 @@ const NorthCampus = () => {
   }, []);
 
   const handleAddEvent = () => {
+    setEventError("");
+
     if (!eventTitle || !eventDate || !eventTime) {
-      alert("Please fill all fields");
+      setEventError("⚠️ Please fill all required fields");
       return;
     }
 
@@ -274,13 +279,13 @@ const NorthCampus = () => {
     const endTime = new Date(`${eventDate}T${eventEndTime}`).getTime();
 
     if (endTime <= startTime) {
-      alert("End time must be after start time");
+      setEventError("⚠️ End time must be after start time");
       return;
     }
+
     setEvents((prev) => {
       const list = prev[selectedBuilding.id] || [];
 
-      // ✏️ EDIT MODE
       if (editingEvent) {
         return {
           ...prev,
@@ -299,7 +304,6 @@ const NorthCampus = () => {
         };
       }
 
-      // ➕ ADD MODE
       return {
         ...prev,
         [selectedBuilding.id]: [
@@ -455,6 +459,9 @@ const NorthCampus = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
       >
         {/* Search Bar */}
         <div
@@ -470,7 +477,7 @@ const NorthCampus = () => {
             borderRadius: 16,
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
             border: "2px solid rgba(255, 255, 255, 0.15)",
-            width: 300,
+            width: "min(300px, calc(100vw - 50px))",
           }}
         >
           <div
@@ -673,7 +680,7 @@ const NorthCampus = () => {
                 id="Buildings"
                 onClick={(e) => {
                   // 🚫 If user dragged, ignore click
-                  if (dragDistance.current > 5) return;
+                  if (dragDistance.current > 10) return;
 
                   e.stopPropagation();
                   const target = e.target;
@@ -1816,6 +1823,23 @@ const NorthCampus = () => {
                         onChange={(e) => setEventColor(e.target.value)}
                       />
                     </div>
+
+                    {eventError && (
+                      <div
+                        style={{
+                          padding: "12px 16px",
+                          backgroundColor: "rgba(239, 68, 68, 0.1)",
+                          border: "2px solid rgba(239, 68, 68, 0.3)",
+                          borderRadius: "12px",
+                          color: "#dc2626",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          marginBottom: "20px",
+                        }}
+                      >
+                        {eventError}
+                      </div>
+                    )}
 
                     <div className="event-modal-actions">
                       <button

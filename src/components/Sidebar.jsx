@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth } from "../firebase"; // ADD THIS IMPORT
 import { signOut } from "firebase/auth"; // ADD THIS IMPORT
+import "../styles/Sidebar.css";
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,7 +25,8 @@ const Sidebar = () => {
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-      alert("Failed to logout. Please try again.");
+      // Silently retry or just navigate anyway since local state will clear
+      navigate("/");
     }
   };
 
@@ -33,9 +35,9 @@ const Sidebar = () => {
       {/* 1. TOGGLE BUTTON - Dark Theme */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed top-4 left-4 z-50 p-2.5 rounded-xl shadow-lg border-2 transition-all duration-300
-          ${isOpen ? "opacity-0 pointer-events-none" : "opacity-100"}
-          bg-black/70 backdrop-blur-md border-white/15 hover:bg-black/85 hover:border-white/25`}
+        className={`sidebar-toggle fixed top-4 left-4 z-50 p-2.5 rounded-xl shadow-lg border-2 transition-all duration-300
+    ${isOpen ? "opacity-0 pointer-events-none" : "opacity-100"}
+    bg-black/70 backdrop-blur-md border-white/15 hover:bg-black/85 hover:border-white/25`}
         style={{
           boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
         }}
@@ -66,7 +68,7 @@ const Sidebar = () => {
 
       {/* 3. SIDEBAR PANEL - Dark Theme */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${
+        className={`sidebar-panel fixed top-0 left-0 h-full w-72 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{
@@ -118,7 +120,11 @@ const Sidebar = () => {
           />
           <SidebarItem
             label="🏫 South Campus"
-            onClick={() => alert("South Campus Map Coming Soon!")}
+            onClick={() => {
+              navigate("/dashboard");
+              setIsOpen(false);
+            }}
+            disabled={true}
           />
 
           <button
@@ -178,21 +184,32 @@ const Sidebar = () => {
 };
 
 // Helper for menu items - Dark Theme
-const SidebarItem = ({ label, onClick }) => (
+const SidebarItem = ({ label, onClick, disabled = false }) => (
   <button
     onClick={onClick}
-    className="w-full text-left px-4 py-3 text-gray-300 hover:text-white font-medium rounded-lg transition-all"
+    disabled={disabled}
+    className={`w-full text-left px-4 py-3 font-medium rounded-lg transition-all ${
+      disabled
+        ? "text-gray-600 cursor-not-allowed opacity-50"
+        : "text-gray-300 hover:text-white"
+    }`}
     style={{
-      background: "rgba(255, 255, 255, 0.05)",
+      background: disabled
+        ? "rgba(255, 255, 255, 0.02)"
+        : "rgba(255, 255, 255, 0.05)",
     }}
     onMouseEnter={(e) => {
-      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+      if (!disabled) {
+        e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+      }
     }}
     onMouseLeave={(e) => {
-      e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+      if (!disabled) {
+        e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+      }
     }}
   >
-    {label}
+    {label} {disabled && "🔒"}
   </button>
 );
 
