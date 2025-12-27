@@ -64,7 +64,6 @@ const NorthCampus = () => {
   const [isDraggingUI, setIsDraggingUI] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showBuildingModal, setShowBuildingModal] = useState(false);
-  const [hoveredBuilding, setHoveredBuilding] = useState(null);
   const [events, setEvents] = useState({});
   const [eventsLoaded, setEventsLoaded] = useState(false);
 
@@ -254,7 +253,7 @@ const NorthCampus = () => {
 
         return updated;
       });
-    }, 30 * 1000); // check every 30 seconds
+    }, 30 * 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -324,7 +323,7 @@ const NorthCampus = () => {
   const zoomIn = () => setScale((p) => Math.min(p + ZOOM_STEP, MAX_ZOOM));
   const zoomOut = () => setScale((p) => Math.max(p - ZOOM_STEP, minZoom));
 
-  const filteredBuildings = Object.entries(BUILDING_META).filter(([_, b]) =>
+  const filteredBuildings = Object.entries(BUILDING_META).filter(([, b]) =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -466,9 +465,11 @@ const NorthCampus = () => {
             right: 25,
             left: "auto",
             zIndex: 10,
-            backgroundColor: "white",
-            borderRadius: 8,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(20px)",
+            borderRadius: 16,
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
+            border: "2px solid rgba(255, 255, 255, 0.15)",
             width: 300,
           }}
         >
@@ -480,7 +481,9 @@ const NorthCampus = () => {
               gap: 8,
             }}
           >
-            <span>🔍</span>
+            <span style={{ fontSize: 18, opacity: 0.7, color: "white" }}>
+              🔍
+            </span>
             <input
               type="text"
               placeholder="Search buildings..."
@@ -491,11 +494,14 @@ const NorthCampus = () => {
                 border: "none",
                 outline: "none",
                 fontSize: 14,
+                backgroundColor: "transparent",
+                color: "white",
+                fontWeight: 500,
               }}
             />
           </div>
           {searchQuery && (
-            <div style={{ borderTop: "1px solid #eee" }}>
+            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
               {filteredBuildings.length > 0 ? (
                 filteredBuildings.map(([id, b]) => (
                   <div
@@ -505,23 +511,34 @@ const NorthCampus = () => {
                       setSearchQuery("");
                     }}
                     onMouseEnter={(e) =>
-                      (e.target.style.backgroundColor = "#f5f5f5")
+                      (e.target.style.backgroundColor =
+                        "rgba(255, 255, 255, 0.1)")
                     }
                     onMouseLeave={(e) =>
-                      (e.target.style.backgroundColor = "white")
+                      (e.target.style.backgroundColor = "transparent")
                     }
                     style={{
                       padding: 10,
                       cursor: "pointer",
                       fontSize: 14,
-                      borderBottom: "1px solid #eee",
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      fontWeight: 500,
+                      backgroundColor: "transparent",
+                      transition: "all 0.2s ease",
                     }}
                   >
                     {b.name}
                   </div>
                 ))
               ) : (
-                <div style={{ padding: 10, color: "#999", fontSize: 14 }}>
+                <div
+                  style={{
+                    padding: 10,
+                    color: "rgba(255, 255, 255, 0.5)",
+                    fontSize: 14,
+                  }}
+                >
                   No results
                 </div>
               )}
@@ -545,14 +562,31 @@ const NorthCampus = () => {
           <button
             onClick={zoomIn}
             style={{
-              width: 40,
-              height: 40,
-              border: "none",
-              backgroundColor: "white",
-              borderRadius: 8,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              width: 48,
+              height: 48,
+              border: "2px solid rgba(255, 255, 255, 0.15)",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(10px)",
+              borderRadius: 12,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
               cursor: "pointer",
-              fontSize: 20,
+              fontSize: 22,
+              fontWeight: "bold",
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.85)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)";
             }}
           >
             +
@@ -560,14 +594,31 @@ const NorthCampus = () => {
           <button
             onClick={zoomOut}
             style={{
-              width: 40,
-              height: 40,
-              border: "none",
-              backgroundColor: "white",
-              borderRadius: 8,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              width: 48,
+              height: 48,
+              border: "2px solid rgba(255, 255, 255, 0.15)",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(10px)",
+              borderRadius: 12,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
               cursor: "pointer",
-              fontSize: 20,
+              fontSize: 22,
+              fontWeight: "bold",
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.85)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)";
             }}
           >
             −
@@ -575,17 +626,34 @@ const NorthCampus = () => {
           <button
             onClick={resetView}
             style={{
-              width: 40,
-              height: 40,
-              border: "none",
-              backgroundColor: "white",
-              borderRadius: 8,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              width: 48,
+              height: 48,
+              border: "2px solid rgba(255, 255, 255, 0.15)",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(10px)",
+              borderRadius: 12,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
               cursor: "pointer",
-              fontSize: 20,
+              fontSize: 22,
+              fontWeight: "bold",
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.85)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)";
             }}
           >
-            ⟳
+            ⟲
           </button>
         </div>
 
@@ -1557,11 +1625,16 @@ const NorthCampus = () => {
             position: "absolute",
             bottom: 20,
             left: 20,
-            backgroundColor: "white",
-            padding: "8px 12px",
-            borderRadius: 8,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(10px)",
+            padding: "10px 16px",
+            borderRadius: 10,
             fontSize: 14,
+            fontWeight: 600,
+            color: "white",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+            zIndex: 10,
+            border: "2px solid rgba(255, 255, 255, 0.15)",
           }}
         >
           Zoom: {Math.round(scale * 100)}%
@@ -1685,47 +1758,64 @@ const NorthCampus = () => {
               {showEventModal && (
                 <div
                   className="event-modal-overlay"
-                  onClick={() => setShowEventModal(false)}
+                  onClick={() => {
+                    resetEventForm();
+                    setShowEventModal(false);
+                  }}
                 >
                   <div
                     className="event-modal"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <h2>Add Event</h2>
+                    <h2>
+                      {editingEvent ? "✏️ Edit Event" : "➕ Add New Event"}
+                    </h2>
 
-                    <input
-                      type="text"
-                      placeholder="Event title"
-                      value={eventTitle}
-                      onChange={(e) => setEventTitle(e.target.value)}
-                    />
+                    <div className="input-group">
+                      <label className="input-label">Event Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Team Meeting, Class Lecture..."
+                        value={eventTitle}
+                        onChange={(e) => setEventTitle(e.target.value)}
+                      />
+                    </div>
 
-                    <input
-                      type="date"
-                      value={eventDate}
-                      onChange={(e) => setEventDate(e.target.value)}
-                    />
+                    <div className="input-group">
+                      <label className="input-label">Date</label>
+                      <input
+                        type="date"
+                        value={eventDate}
+                        onChange={(e) => setEventDate(e.target.value)}
+                      />
+                    </div>
 
-                    <input
-                      type="time"
-                      value={eventTime}
-                      onChange={(e) => setEventTime(e.target.value)}
-                    />
-                    <input
-                      type="time"
-                      placeholder="End time"
-                      value={eventEndTime}
-                      onChange={(e) => setEventEndTime(e.target.value)}
-                    />
+                    <div className="input-group">
+                      <label className="input-label">Start Time</label>
+                      <input
+                        type="time"
+                        value={eventTime}
+                        onChange={(e) => setEventTime(e.target.value)}
+                      />
+                    </div>
 
-                    <label className="color-picker">
-                      Event color
+                    <div className="input-group">
+                      <label className="input-label">End Time</label>
+                      <input
+                        type="time"
+                        value={eventEndTime}
+                        onChange={(e) => setEventEndTime(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="color-picker">
+                      <label>Event Color</label>
                       <input
                         type="color"
                         value={eventColor}
                         onChange={(e) => setEventColor(e.target.value)}
                       />
-                    </label>
+                    </div>
 
                     <div className="event-modal-actions">
                       <button
@@ -1739,7 +1829,7 @@ const NorthCampus = () => {
                       </button>
 
                       <button className="save-btn" onClick={handleAddEvent}>
-                        {editingEvent ? "Update Event" : "Save Event"}
+                        {editingEvent ? "💾 Update Event" : "💾 Save Event"}
                       </button>
                     </div>
                   </div>
