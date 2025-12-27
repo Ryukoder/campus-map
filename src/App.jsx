@@ -11,7 +11,6 @@ import Sidebar from "./components/Sidebar";
 
 function App() {
   return (
-    // MAIN CONTAINER: Forces the app to be exactly the size of the screen
     <div
       style={{
         position: "relative",
@@ -20,7 +19,7 @@ function App() {
         overflow: "hidden",
       }}
     >
-      {/* LAYER 1: BACKGROUND IMAGE (Stuck to the back) */}
+      {}
       <div
         style={{
           position: "absolute",
