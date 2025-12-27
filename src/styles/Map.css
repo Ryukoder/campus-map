@@ -1665,3 +1665,24 @@ select option:hover {
 select optgroup {
   font-style: normal !important;
 }
+
+/* Prevent mobile browser zoom/pan conflicts */
+.map-container {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in modals */
+.modal-fullscreen,
+.event-modal {
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Prevent accidental text selection while dragging */
+svg {
+  -webkit-user-select: none;
+  user-select: none;
+}

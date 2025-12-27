@@ -590,16 +590,25 @@ const NorthCampus = () => {
 
     isDragging.current = true;
     setIsDraggingUI(true);
-    dragDistance.current = 0; // 👈 ADD THIS
-    lastPos.current = { x: e.clientX, y: e.clientY };
+    dragDistance.current = 0;
+
+    // ✅ Handle both mouse and touch
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    lastPos.current = { x: clientX, y: clientY };
   };
 
   const handleMouseMove = (e) => {
     if (!isDragging.current || !containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-    const dx = e.clientX - lastPos.current.x;
-    const dy = e.clientY - lastPos.current.y;
+
+    // ✅ Handle both mouse and touch
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+    const dx = clientX - lastPos.current.x;
+    const dy = clientY - lastPos.current.y;
 
     dragDistance.current += Math.abs(dx) + Math.abs(dy);
 
@@ -615,7 +624,86 @@ const NorthCampus = () => {
       };
     });
 
-    lastPos.current = { x: e.clientX, y: e.clientY };
+    lastPos.current = { x: clientX, y: clientY };
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      // Pinch zoom starting
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      lastPos.current.pinchDistance = distance;
+      lastPos.current.pinchCenter = {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2,
+      };
+    } else {
+      // Regular touch (already handled by handleMouseDown)
+      handleMouseDown(e);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      e.preventDefault();
+      if (!containerRef.current) return;
+
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+
+      if (lastPos.current.pinchDistance) {
+        const delta = distance / lastPos.current.pinchDistance;
+        const rect = containerRef.current.getBoundingClientRect();
+        const centerX = lastPos.current.pinchCenter.x - rect.left;
+        const centerY = lastPos.current.pinchCenter.y - rect.top;
+
+        setScale((prev) => {
+          const next = Math.min(Math.max(prev * delta, minZoom), MAX_ZOOM);
+
+          // Zoom towards pinch center
+          const pointX = (centerX - translate.x) / prev;
+          const pointY = (centerY - translate.y) / prev;
+          let newX = centerX - pointX * next;
+          let newY = centerY - pointY * next;
+
+          // Calculate boundaries
+          const scaledW = SVG_WIDTH * next;
+          const scaledH = SVG_HEIGHT * next;
+          const minX =
+            rect.width > scaledW
+              ? (rect.width - scaledW) / 2
+              : Math.min(0, rect.width - scaledW);
+          const maxX = rect.width > scaledW ? (rect.width - scaledW) / 2 : 0;
+          const minY =
+            rect.height > scaledH
+              ? (rect.height - scaledH) / 2
+              : Math.min(0, rect.height - scaledH);
+          const maxY = rect.height > scaledH ? (rect.height - scaledH) / 2 : 0;
+
+          setTranslate({
+            x: Math.max(minX, Math.min(maxX, newX)),
+            y: Math.max(minY, Math.min(maxY, newY)),
+          });
+
+          return next;
+        });
+
+        lastPos.current.pinchDistance = distance;
+      }
+    } else {
+      // Regular drag (already handled)
+      handleMouseMove(e);
+    }
   };
 
   const handleMouseUp = () => {
@@ -718,8 +806,8 @@ const NorthCampus = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        onTouchStart={handleMouseDown}
-        onTouchMove={handleMouseMove}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleMouseUp}
       >
         {/* Search Bar */}
@@ -938,8 +1026,9 @@ const NorthCampus = () => {
               <g
                 id="Buildings"
                 onClick={(e) => {
-                  // 🚫 If user dragged, ignore click
-                  if (dragDistance.current > 10) return;
+                  // 🚫 If user dragged, ignore click (higher threshold for touch)
+                  const threshold = "ontouchstart" in window ? 15 : 10;
+                  if (dragDistance.current > threshold) return;
 
                   e.stopPropagation();
                   const target = e.target;
