@@ -77,6 +77,9 @@ const NorthCampus = () => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [eventEndTime, setEventEndTime] = useState("");
 
+  const [showMessMenu, setShowMessMenu] = useState(false);
+  const [menuZoom, setMenuZoom] = useState(1);
+
   const ZOOM_STEP = 0.2;
   const [minZoom, setMinZoom] = useState(0.15);
   const MAX_ZOOM = 3;
@@ -1682,6 +1685,35 @@ const NorthCampus = () => {
                 this building will appear here.
               </p>
 
+              {/* Mess Menu Button - Only show for mess buildings */}
+              {selectedBuilding &&
+                selectedBuilding.id &&
+                (selectedBuilding.id === "Oak_Mess" ||
+                  selectedBuilding.id === "Pine_Mess" ||
+                  selectedBuilding.id === "Tulsi_Mess" ||
+                  selectedBuilding.id === "Peepal_Mess") && (
+                  <button
+                    className="view-menu-btn"
+                    onClick={() => setShowMessMenu(true)}
+                  >
+                    📋 View Mess Menu
+                  </button>
+                )}
+              {/* Bus Booking Button - Only show for Bus Stop */}
+              {selectedBuilding && selectedBuilding.id === "Bus_Stop" && (
+                <button
+                  className="bus-booking-btn"
+                  onClick={() =>
+                    window.open(
+                      "https://oas.iitmandi.ac.in/instituteprocess/common/login.aspx",
+                      "_blank"
+                    )
+                  }
+                >
+                  🚌 Book Bus Tickets
+                </button>
+              )}
+
               <div className="modal-events">
                 <h3>📅 Events</h3>
 
@@ -1860,6 +1892,226 @@ const NorthCampus = () => {
                 </div>
               )}
             </section>
+          </div>
+        </div>
+      )}
+      {/* Mess Menu Modal */}
+      {showMessMenu && (
+        <div
+          className="menu-modal-overlay"
+          onClick={() => {
+            setShowMessMenu(false);
+            setMenuZoom(1);
+          }}
+        >
+          <div
+            className="menu-modal-container"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="menu-modal-header">
+              <h2>📋 Weekly Mess Menu</h2>
+              <div className="menu-zoom-controls">
+                <button
+                  onClick={() => setMenuZoom((prev) => Math.min(prev + 0.2, 2))}
+                  className="menu-zoom-btn"
+                >
+                  🔍+
+                </button>
+                <span className="menu-zoom-level">
+                  {Math.round(menuZoom * 100)}%
+                </span>
+                <button
+                  onClick={() =>
+                    setMenuZoom((prev) => Math.max(prev - 0.2, 0.5))
+                  }
+                  className="menu-zoom-btn"
+                >
+                  🔍−
+                </button>
+                <button
+                  onClick={() => setMenuZoom(1)}
+                  className="menu-reset-btn"
+                >
+                  Reset
+                </button>
+              </div>
+              <button
+                className="menu-close-btn"
+                onClick={() => {
+                  setShowMessMenu(false);
+                  setMenuZoom(1);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="menu-content-wrapper">
+              <div
+                className="menu-content"
+                style={{ transform: `scale(${menuZoom})` }}
+              >
+                <div className="menu-table">
+                  <div className="menu-row menu-header-row">
+                    <div className="menu-cell">Meal</div>
+                    <div className="menu-cell">Monday</div>
+                    <div className="menu-cell">Tuesday</div>
+                    <div className="menu-cell">Wednesday</div>
+                    <div className="menu-cell">Thursday</div>
+                    <div className="menu-cell">Friday</div>
+                    <div className="menu-cell">Saturday</div>
+                    <div className="menu-cell">Sunday</div>
+                  </div>
+
+                  {/* Breakfast Row */}
+                  <div className="menu-row">
+                    <div className="menu-cell meal-type">🍳 Breakfast</div>
+                    <div className="menu-cell">
+                      <div>Aloo onion paratha</div>
+                      <div>Chutney</div>
+                      <div>Curd</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Poori Chana</div>
+                      <div>Halwa</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Mix Paratha</div>
+                      <div>Dhaniya Chutney</div>
+                      <div>Chutney</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Idli</div>
+                      <div>Sambhar & chutney</div>
+                      <div>Coconut Chutney</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Uttapam</div>
+                      <div>Sambhar</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Methi/Palak paratha</div>
+                      <div>Aloo Tamatar Sabji</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Masala Onion Dosa</div>
+                      <div>Sambhar</div>
+                    </div>
+                  </div>
+
+                  {/* Lunch Row */}
+                  <div className="menu-row">
+                    <div className="menu-cell meal-type">🍛 Lunch</div>
+                    <div className="menu-cell">
+                      <div>Rajma</div>
+                      <div>Cabbage-Matar</div>
+                      <div>Jeera Rice</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Mix Dal</div>
+                      <div>Veg Kofta</div>
+                      <div>Masala Papad</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Kadhi Pakora</div>
+                      <div>Aloo Zeera</div>
+                      <div>Poori</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Sitafal</div>
+                      <div>White Chole</div>
+                      <div>Rice</div>
+                      <div>Massala Chaach</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Aloo Gazar Gobhi Dry</div>
+                      <div>Moong Masoor Dal</div>
+                      <div>Green Chutney</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Paneer Bhurji</div>
+                      <div>Chana Dal</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Bhature</div>
+                      <div>Chole</div>
+                      <div>Fried Masala Chilli</div>
+                      <div>Khichdi</div>
+                    </div>
+                  </div>
+
+                  {/* Dinner Row */}
+                  <div className="menu-row">
+                    <div className="menu-cell meal-type">🌙 Dinner</div>
+                    <div className="menu-cell">
+                      <div>Sarson Ka Saag</div>
+                      <div>Dal Tadka</div>
+                      <div>Rice Kheer</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Lauki Chana</div>
+                      <div>Dal Makhni</div>
+                      <div>Motichur Laddu</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Paneer Do Pyaza</div>
+                      <div>Dal Fry</div>
+                      <div>Sooji Ka Halwa</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Mix Veg</div>
+                      <div>Black Masoor dal</div>
+                      <div>Gulab Jamun</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Palak Paneer</div>
+                      <div>Roongi Dal</div>
+                      <div>Balushaai</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Aloo Matar</div>
+                      <div>Arher Dal</div>
+                      <div>Garam Sewayi</div>
+                      <div>Roti</div>
+                    </div>
+                    <div className="menu-cell">
+                      <div>Paneer Biryani</div>
+                      <div>Aloo soyabean</div>
+                      <div>Veg Raita</div>
+                      <div>Ice-Cream</div>
+                    </div>
+                  </div>
+
+                  {/* Common Items Row */}
+                  <div className="menu-row common-items-row">
+                    <div className="menu-cell meal-type">☕ Daily</div>
+                    <div
+                      className="menu-cell common-items"
+                      style={{ gridColumn: "2 / -1" }}
+                    >
+                      <div>
+                        <strong>All Meals:</strong> Bread (4 slices), Butter &
+                        Jam, Coffee/Tea/Bournvita, Sprouts
+                      </div>
+                      <div>
+                        <strong>Lunch & Dinner:</strong> Green Salad (Beetroot,
+                        Onion, Carrot, Tomato, Cucumber), Lemon, Pickle
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
