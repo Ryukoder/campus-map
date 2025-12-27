@@ -28,7 +28,29 @@ const BUILDING_META = {
   B24: { name: "B24 - Boys Hostel" },
   B26: { name: "B26 - Boys Hostel" },
 
-  A9: { name: "A9 - Academic Block" },
+  A9: {
+    name: "A9 - Academic Block",
+    subLocations: [
+      // Ground Floor
+      { id: "room_g01", name: "Room G-01", icon: "🚪", floor: "Ground Floor" },
+      { id: "room_g02", name: "Room G-02", icon: "🚪", floor: "Ground Floor" },
+      { id: "lab_g1", name: "Lab G-1", icon: "🔬", floor: "Ground Floor" },
+
+      // First Floor
+      { id: "room_101", name: "Room 101", icon: "🚪", floor: "First Floor" },
+      { id: "room_102", name: "Room 102", icon: "🚪", floor: "First Floor" },
+      { id: "lab_1", name: "Lab 1", icon: "🔬", floor: "First Floor" },
+
+      // Second Floor
+      { id: "room_201", name: "Room 201", icon: "🚪", floor: "Second Floor" },
+      {
+        id: "auditorium",
+        name: "Mini Auditorium",
+        icon: "🎭",
+        floor: "Second Floor",
+      },
+    ],
+  },
   A10: { name: "A10 - Academic Block" },
   A11: { name: "A11 - Academic Block" },
   A13: { name: "A13 - Academic Block" },
@@ -42,9 +64,34 @@ const BUILDING_META = {
   Tulsi_Mess: { name: "Tulsi Mess" },
   Peepal_Mess: { name: "Peepal Mess" },
 
-  Library: { name: "Central Library" },
-  Audi: { name: "Auditorium" },
-  Sports_Complex: { name: "Sports Complex" },
+  Library: {
+    name: "Central Library",
+    subLocations: [
+      { id: "reading_room", name: "Reading Room", icon: "📖" },
+      { id: "study_hall", name: "Study Hall", icon: "✏️" },
+      { id: "computer_lab", name: "Computer Lab", icon: "💻" },
+      { id: "reference", name: "Reference Section", icon: "📚" },
+    ],
+  },
+  Audi: {
+    name: "Auditorium",
+    subLocations: [
+      { id: "main", name: "Main Auditorium", icon: "🎭" },
+      { id: "hall_a", name: "Hall A", icon: "🚪" },
+      { id: "hall_b", name: "Hall B", icon: "🚪" },
+      { id: "hall_c", name: "Hall C", icon: "🚪" },
+    ],
+  },
+  Sports_Complex: {
+    name: "Sports Complex",
+    subLocations: [
+      { id: "cricket", name: "Cricket Ground", icon: "🏏" },
+      { id: "basketball", name: "Basketball Court", icon: "🏀" },
+      { id: "gym", name: "Gym", icon: "🏋️" },
+      { id: "swimming", name: "Swimming Pool", icon: "🏊" },
+      { id: "badminton", name: "Badminton Court", icon: "🏸" },
+    ],
+  },
   Health_Centre: { name: "Health Centre" },
   Bus_Stop: { name: "Bus Stop" },
   CV_Raman_Guest_House: { name: "CV Raman Guest House" },
@@ -78,6 +125,7 @@ const NorthCampus = () => {
   const [eventEndTimeDate, setEventEndTimeDate] = useState(new Date());
   const [eventColor, setEventColor] = useState("#1e90ff");
   const [eventCategory, setEventCategory] = useState("personal");
+  const [eventSubLocation, setEventSubLocation] = useState(null);
   const [selectedColorFilters, setSelectedColorFilters] = useState([]);
 
   const EVENT_CATEGORIES = {
@@ -199,6 +247,7 @@ const NorthCampus = () => {
     setEventEndTimeDate(new Date());
     setEventColor("#1e90ff");
     setEventCategory("personal");
+    setEventSubLocation(null);
     setEditingEvent(null);
     setEventError("");
   };
@@ -374,6 +423,21 @@ const NorthCampus = () => {
       return;
     }
 
+    if (endTime <= startTime) {
+      setEventError("⚠️ End time must be after start time");
+      return;
+    }
+
+    // Validate sub-location for buildings that have them
+    if (
+      selectedBuilding &&
+      BUILDING_META[selectedBuilding.id]?.subLocations &&
+      !eventSubLocation
+    ) {
+      setEventError("⚠️ Please select a specific location (Hall/Room)");
+      return;
+    }
+
     setEvents((prev) => {
       const list = prev[selectedBuilding.id] || [];
 
@@ -389,6 +453,7 @@ const NorthCampus = () => {
                   endTime,
                   color: eventColor,
                   category: eventCategory,
+                  subLocation: eventSubLocation,
                   reminded: false,
                 }
               : e
@@ -407,6 +472,7 @@ const NorthCampus = () => {
             endTime,
             color: eventColor,
             category: eventCategory,
+            subLocation: eventSubLocation,
             reminded: false,
           },
         ],
@@ -2045,6 +2111,79 @@ const NorthCampus = () => {
                       );
                     })()}
 
+                  {/* Sub-Location Info Pills */}
+                  {selectedBuilding &&
+                    BUILDING_META[selectedBuilding.id]?.subLocations &&
+                    (events[selectedBuilding.id] || []).some(
+                      (e) => e.subLocation
+                    ) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "6px",
+                          flexWrap: "wrap",
+                          marginBottom: "12px",
+                          padding: "12px",
+                          background: "rgba(59, 130, 246, 0.05)",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(59, 130, 246, 0.1)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: "#6b7280",
+                            fontWeight: "600",
+                            alignSelf: "center",
+                            marginRight: "4px",
+                          }}
+                        >
+                          📍 Locations:
+                        </span>
+
+                        {BUILDING_META[selectedBuilding.id].subLocations.map(
+                          (subLoc) => {
+                            const count = (
+                              events[selectedBuilding.id] || []
+                            ).filter((e) => e.subLocation === subLoc.id).length;
+
+                            if (count === 0) return null;
+
+                            return (
+                              <span
+                                key={subLoc.id}
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: "14px",
+                                  background: "rgba(59, 130, 246, 0.15)",
+                                  border: "1px solid rgba(59, 130, 246, 0.25)",
+                                  fontSize: "11px",
+                                  fontWeight: "600",
+                                  color: "#2563eb",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                {subLoc.icon} {subLoc.name}{" "}
+                                <span
+                                  style={{
+                                    background: "rgba(59, 130, 246, 0.2)",
+                                    padding: "1px 5px",
+                                    borderRadius: "8px",
+                                    fontSize: "10px",
+                                    marginLeft: "2px",
+                                  }}
+                                >
+                                  {count}
+                                </span>
+                              </span>
+                            );
+                          }
+                        )}
+                      </div>
+                    )}
+
                   {(events[selectedBuilding.id] || []).length > 0 && (
                     <div className="event-search-bar">
                       <span className="event-search-icon">🔍</span>
@@ -2107,6 +2246,29 @@ const NorthCampus = () => {
                             <div>
                               <strong>{evt.title}</strong>
                               <div className="event-meta">
+                                {/* Show sub-location if exists */}
+                                {evt.subLocation &&
+                                  BUILDING_META[selectedBuilding.id]
+                                    ?.subLocations && (
+                                    <div style={{ marginBottom: "4px" }}>
+                                      {
+                                        BUILDING_META[
+                                          selectedBuilding.id
+                                        ].subLocations.find(
+                                          (loc) => loc.id === evt.subLocation
+                                        )?.icon
+                                      }{" "}
+                                      <strong>
+                                        {
+                                          BUILDING_META[
+                                            selectedBuilding.id
+                                          ].subLocations.find(
+                                            (loc) => loc.id === evt.subLocation
+                                          )?.name
+                                        }
+                                      </strong>
+                                    </div>
+                                  )}
                                 {new Date(evt.startTime).toLocaleDateString()} •{" "}
                                 {new Date(evt.startTime).toLocaleTimeString(
                                   [],
@@ -2129,16 +2291,14 @@ const NorthCampus = () => {
                                 onClick={() => {
                                   setEditingEvent(evt);
                                   setEventTitle(evt.title);
-
-                                  // Set date and times properly
                                   const startDate = new Date(evt.startTime);
                                   const endDate = new Date(evt.endTime);
-
                                   setEventDate(startDate);
                                   setEventTime(startDate);
                                   setEventEndTimeDate(endDate);
                                   setEventColor(evt.color);
                                   setEventCategory(evt.category || "personal");
+                                  setEventSubLocation(evt.subLocation || null);
                                   setShowEventModal(true);
                                 }}
                               >
@@ -2328,6 +2488,309 @@ const NorthCampus = () => {
                         ))}
                       </div>
                     </div>
+
+                    {/* Sub-Location Dropdown - DARK GLASSMORPHISM EDITION */}
+                    {selectedBuilding &&
+                      BUILDING_META[selectedBuilding.id]?.subLocations && (
+                        <div className="input-group">
+                          <label className="input-label">
+                            📍 SPECIFIC LOCATION
+                          </label>
+
+                          {/* Custom Dropdown Container */}
+                          <div style={{ position: "relative" }}>
+                            <select
+                              value={eventSubLocation || ""}
+                              onChange={(e) =>
+                                setEventSubLocation(e.target.value || null)
+                              }
+                              style={{
+                                width: "100%",
+                                padding: "18px 20px",
+                                paddingRight: "50px",
+                                borderRadius: "16px",
+                                border: "2px solid rgba(255, 255, 255, 0.1)",
+                                fontSize: "15px",
+                                fontFamily: "inherit",
+                                transition:
+                                  "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                background:
+                                  "linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(30, 30, 30, 0.6) 100%)",
+                                backdropFilter: "blur(20px)",
+                                cursor: "pointer",
+                                color: "white",
+                                fontWeight: "600",
+                                appearance: "none",
+                                boxShadow:
+                                  "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                                letterSpacing: "0.3px",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.background =
+                                  "linear-gradient(135deg, rgba(20, 20, 20, 0.7) 0%, rgba(40, 40, 40, 0.7) 100%)";
+                                e.target.style.borderColor =
+                                  "rgba(255, 255, 255, 0.2)";
+                                e.target.style.transform = "translateY(-2px)";
+                                e.target.style.boxShadow =
+                                  "0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15)";
+                              }}
+                              onMouseLeave={(e) => {
+                                if (document.activeElement !== e.target) {
+                                  e.target.style.background =
+                                    "linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(30, 30, 30, 0.6) 100%)";
+                                  e.target.style.borderColor =
+                                    "rgba(255, 255, 255, 0.1)";
+                                  e.target.style.transform = "translateY(0)";
+                                  e.target.style.boxShadow =
+                                    "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)";
+                                }
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.outline = "none";
+                                e.target.style.borderColor =
+                                  "rgba(59, 130, 246, 0.6)";
+                                e.target.style.background =
+                                  "linear-gradient(135deg, rgba(20, 20, 40, 0.8) 0%, rgba(30, 40, 60, 0.8) 100%)";
+                                e.target.style.boxShadow =
+                                  "0 0 0 4px rgba(59, 130, 246, 0.2), 0 12px 40px rgba(0, 0, 0, 0.5)";
+                                e.target.style.transform = "translateY(-2px)";
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(255, 255, 255, 0.1)";
+                                e.target.style.background =
+                                  "linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(30, 30, 30, 0.6) 100%)";
+                                e.target.style.boxShadow =
+                                  "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)";
+                                e.target.style.transform = "translateY(0)";
+                              }}
+                            >
+                              <option
+                                value=""
+                                style={{
+                                  background: "#1a1a1a",
+                                  color: "#9ca3af",
+                                  padding: "12px",
+                                }}
+                              >
+                                ⚡ Select a location...
+                              </option>
+
+                              {(() => {
+                                const locations =
+                                  BUILDING_META[selectedBuilding.id]
+                                    .subLocations;
+                                const hasFloors = locations.some(
+                                  (loc) => loc.floor
+                                );
+
+                                if (!hasFloors) {
+                                  return locations.map((subLoc) => (
+                                    <option
+                                      key={subLoc.id}
+                                      value={subLoc.id}
+                                      style={{
+                                        background: "#1a1a1a",
+                                        color: "white",
+                                        padding: "12px",
+                                        fontWeight: "500",
+                                      }}
+                                    >
+                                      {subLoc.icon} {subLoc.name}
+                                    </option>
+                                  ));
+                                }
+
+                                const grouped = locations.reduce((acc, loc) => {
+                                  const floor = loc.floor || "Other";
+                                  if (!acc[floor]) acc[floor] = [];
+                                  acc[floor].push(loc);
+                                  return acc;
+                                }, {});
+
+                                return Object.entries(grouped).map(
+                                  ([floor, locs]) => (
+                                    <optgroup
+                                      key={floor}
+                                      label={floor}
+                                      style={{
+                                        background: "#0a0a0a",
+                                        color: "#3b82f6",
+                                        fontWeight: "700",
+                                        fontSize: "13px",
+                                        padding: "8px",
+                                        letterSpacing: "1px",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
+                                      {locs.map((subLoc) => (
+                                        <option
+                                          key={subLoc.id}
+                                          value={subLoc.id}
+                                          style={{
+                                            background: "#1a1a1a",
+                                            color: "white",
+                                            padding: "12px 12px 12px 24px",
+                                            fontWeight: "500",
+                                          }}
+                                        >
+                                          {subLoc.icon} {subLoc.name}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  )
+                                );
+                              })()}
+                            </select>
+
+                            {/* Custom Chevron Icon */}
+                            <div
+                              style={{
+                                position: "absolute",
+                                right: "18px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                pointerEvents: "none",
+                                background: "rgba(255, 255, 255, 0.1)",
+                                borderRadius: "8px",
+                                padding: "6px 8px",
+                                backdropFilter: "blur(10px)",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                              }}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="white"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* Selected Location Preview - DARK CARD */}
+                          {eventSubLocation && (
+                            <div
+                              style={{
+                                marginTop: "14px",
+                                padding: "16px 18px",
+                                background:
+                                  "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)",
+                                borderRadius: "14px",
+                                border: "2px solid rgba(16, 185, 129, 0.3)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                boxShadow:
+                                  "0 4px 16px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                                backdropFilter: "blur(10px)",
+                                animation: "slideIn 0.3s ease-out",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: "40px",
+                                    height: "40px",
+                                    background:
+                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                    borderRadius: "12px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "20px",
+                                    boxShadow:
+                                      "0 4px 12px rgba(16, 185, 129, 0.4)",
+                                  }}
+                                >
+                                  {
+                                    BUILDING_META[
+                                      selectedBuilding.id
+                                    ].subLocations.find(
+                                      (loc) => loc.id === eventSubLocation
+                                    )?.icon
+                                  }
+                                </div>
+
+                                <div>
+                                  <div
+                                    style={{
+                                      fontSize: "11px",
+                                      color: "rgba(255, 255, 255, 0.6)",
+                                      fontWeight: "700",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "1px",
+                                      marginBottom: "2px",
+                                    }}
+                                  >
+                                    Selected Location
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: "15px",
+                                      fontWeight: "700",
+                                      color: "#10b981",
+                                      letterSpacing: "0.3px",
+                                    }}
+                                  >
+                                    {
+                                      BUILDING_META[
+                                        selectedBuilding.id
+                                      ].subLocations.find(
+                                        (loc) => loc.id === eventSubLocation
+                                      )?.name
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setEventSubLocation(null)}
+                                style={{
+                                  background: "rgba(239, 68, 68, 0.2)",
+                                  border: "2px solid rgba(239, 68, 68, 0.3)",
+                                  padding: "8px 14px",
+                                  borderRadius: "10px",
+                                  color: "#ef4444",
+                                  fontSize: "13px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  transition: "all 0.2s ease",
+                                  backdropFilter: "blur(10px)",
+                                  letterSpacing: "0.3px",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background =
+                                    "rgba(239, 68, 68, 0.3)";
+                                  e.target.style.transform = "scale(1.05)";
+                                  e.target.style.boxShadow =
+                                    "0 4px 12px rgba(239, 68, 68, 0.3)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background =
+                                    "rgba(239, 68, 68, 0.2)";
+                                  e.target.style.transform = "scale(1)";
+                                  e.target.style.boxShadow = "none";
+                                }}
+                              >
+                                ✕ Clear
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     <div className="color-picker">
                       <label>Custom Color (Optional)</label>
