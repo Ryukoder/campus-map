@@ -77,6 +77,81 @@ const NorthCampus = () => {
   const [eventTime, setEventTime] = useState(new Date());
   const [eventEndTimeDate, setEventEndTimeDate] = useState(new Date());
   const [eventColor, setEventColor] = useState("#1e90ff");
+  const [eventCategory, setEventCategory] = useState("personal");
+  const [selectedColorFilters, setSelectedColorFilters] = useState([]);
+
+  const EVENT_CATEGORIES = {
+    academic: { color: "#3B82F6", icon: "📚", label: "Academic" },
+    social: { color: "#10B981", icon: "🎉", label: "Social" },
+    sports: { color: "#F59E0B", icon: "⚽", label: "Sports" },
+    meeting: { color: "#8B5CF6", icon: "💼", label: "Meeting" },
+    personal: { color: "#EC4899", icon: "🎯", label: "Personal" },
+    deadline: { color: "#EF4444", icon: "⏰", label: "Deadline" },
+  };
+
+  const suggestCategoryFromTitle = (title) => {
+    const keywords = {
+      academic: [
+        "class",
+        "lecture",
+        "study",
+        "assignment",
+        "exam",
+        "test",
+        "lab",
+        "tutorial",
+        "seminar",
+      ],
+      social: [
+        "party",
+        "celebration",
+        "birthday",
+        "fest",
+        "gathering",
+        "hangout",
+        "dinner",
+        "lunch",
+      ],
+      sports: [
+        "sports",
+        "game",
+        "practice",
+        "match",
+        "tournament",
+        "gym",
+        "workout",
+        "cricket",
+        "football",
+      ],
+      meeting: [
+        "meeting",
+        "discussion",
+        "conference",
+        "call",
+        "presentation",
+        "review",
+      ],
+      deadline: [
+        "deadline",
+        "submission",
+        "due",
+        "urgent",
+        "important",
+        "final",
+      ],
+    };
+
+    const lowerTitle = title.toLowerCase();
+
+    for (const [category, words] of Object.entries(keywords)) {
+      if (words.some((word) => lowerTitle.includes(word))) {
+        return category;
+      }
+    }
+
+    return "personal"; // default
+  };
+
   const [editingEvent, setEditingEvent] = useState(null);
 
   const [showMessMenu, setShowMessMenu] = useState(false);
@@ -123,6 +198,7 @@ const NorthCampus = () => {
     setEventTime(new Date());
     setEventEndTimeDate(new Date());
     setEventColor("#1e90ff");
+    setEventCategory("personal");
     setEditingEvent(null);
     setEventError("");
   };
@@ -312,6 +388,7 @@ const NorthCampus = () => {
                   startTime,
                   endTime,
                   color: eventColor,
+                  category: eventCategory,
                   reminded: false,
                 }
               : e
@@ -329,6 +406,7 @@ const NorthCampus = () => {
             startTime,
             endTime,
             color: eventColor,
+            category: eventCategory,
             reminded: false,
           },
         ],
@@ -1704,17 +1782,48 @@ const NorthCampus = () => {
                   const centerX = bbox.x + bbox.width / 2;
                   const centerY = bbox.y + bbox.height / 2 - 20;
 
+                  // Count events by color
+                  const colorCounts = evts.reduce((acc, evt) => {
+                    acc[evt.color] = (acc[evt.color] || 0) + 1;
+                    return acc;
+                  }, {});
+
+                  const uniqueColors = Object.keys(colorCounts);
+                  const dominantColor =
+                    uniqueColors.length === 1
+                      ? uniqueColors[0]
+                      : Object.entries(colorCounts).sort(
+                          (a, b) => b[1] - a[1]
+                        )[0][0];
+
                   return (
                     <g key={buildingId}>
                       <g transform={`translate(${centerX}, ${centerY})`}>
-                        {/* Main pin body - rounded top with point at bottom */}
+                        {/* Main pin body with dynamic color */}
                         <path
                           d="M0,-35 C-12,-35 -20,-27 -20,-15 C-20,-5 0,15 0,15 C0,15 20,-5 20,-15 C20,-27 12,-35 0,-35 Z"
-                          fill="#EA4335"
+                          fill={dominantColor}
                           stroke="white"
                           strokeWidth="2.5"
                           filter="drop-shadow(0 3px 6px rgba(0,0,0,0.35))"
                         />
+
+                        {/* Multi-color indicator if multiple colors */}
+                        {uniqueColors.length > 1 && (
+                          <>
+                            {uniqueColors.slice(0, 3).map((color, idx) => (
+                              <circle
+                                key={color}
+                                cx={idx === 0 ? -8 : idx === 1 ? 0 : 8}
+                                cy="-30"
+                                r="3"
+                                fill={color}
+                                stroke="white"
+                                strokeWidth="1"
+                              />
+                            ))}
+                          </>
+                        )}
 
                         {/* Inner white circle */}
                         <circle cx="0" cy="-18" r="16" fill="white" />
@@ -1725,7 +1834,7 @@ const NorthCampus = () => {
                           y="-15"
                           textAnchor="middle"
                           dominantBaseline="central"
-                          fill="#EA4335"
+                          fill={dominantColor}
                           fontSize="24"
                           fontWeight="700"
                           style={{ pointerEvents: "none" }}
@@ -1768,7 +1877,11 @@ const NorthCampus = () => {
       {showBuildingModal && selectedBuilding && (
         <div
           className="modal-overlay"
-          onClick={() => setShowBuildingModal(false)}
+          onClick={() => {
+            setShowBuildingModal(false);
+            setSelectedColorFilters([]);
+            setEventSearchQuery("");
+          }}
         >
           <div
             className="modal-fullscreen"
@@ -1778,7 +1891,11 @@ const NorthCampus = () => {
               <h1>{selectedBuilding.name}</h1>
               <button
                 className="modal-close"
-                onClick={() => setShowBuildingModal(false)}
+                onClick={() => {
+                  setShowBuildingModal(false);
+                  setSelectedColorFilters([]);
+                  setEventSearchQuery("");
+                }}
               >
                 ✕
               </button>
@@ -1829,6 +1946,105 @@ const NorthCampus = () => {
               <div className="modal-events">
                 <div className="events-header">
                   <h3>📅 Events</h3>
+
+                  {/* Color Filter Pills */}
+                  {(events[selectedBuilding.id] || []).length > 0 &&
+                    (() => {
+                      const uniqueCategories = [
+                        ...new Set(
+                          (events[selectedBuilding.id] || []).map(
+                            (e) => e.category || "personal"
+                          )
+                        ),
+                      ];
+
+                      return (
+                        uniqueCategories.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "8px",
+                              flexWrap: "wrap",
+                              marginBottom: "12px",
+                            }}
+                          >
+                            {uniqueCategories.map((catKey) => {
+                              const cat = EVENT_CATEGORIES[catKey];
+                              if (!cat) return null;
+
+                              const count = (
+                                events[selectedBuilding.id] || []
+                              ).filter(
+                                (e) => (e.category || "personal") === catKey
+                              ).length;
+
+                              const isSelected =
+                                selectedColorFilters.includes(catKey);
+
+                              return (
+                                <button
+                                  key={catKey}
+                                  onClick={() => {
+                                    setSelectedColorFilters((prev) =>
+                                      prev.includes(catKey)
+                                        ? prev.filter((c) => c !== catKey)
+                                        : [...prev, catKey]
+                                    );
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: "20px",
+                                    border: `2px solid ${cat.color}`,
+                                    background: isSelected
+                                      ? cat.color
+                                      : "rgba(255,255,255,0.8)",
+                                    color: isSelected ? "white" : "#1a1a1a",
+                                    fontSize: "13px",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s ease",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                >
+                                  <span>{cat.icon}</span>
+                                  <span>{cat.label}</span>
+                                  <span
+                                    style={{
+                                      opacity: 0.7,
+                                      fontSize: "11px",
+                                      marginLeft: "2px",
+                                    }}
+                                  >
+                                    ({count})
+                                  </span>
+                                </button>
+                              );
+                            })}
+
+                            {selectedColorFilters.length > 0 && (
+                              <button
+                                onClick={() => setSelectedColorFilters([])}
+                                style={{
+                                  padding: "6px 12px",
+                                  borderRadius: "20px",
+                                  border: "2px solid #6b7280",
+                                  background: "rgba(255,255,255,0.8)",
+                                  color: "#6b7280",
+                                  fontSize: "13px",
+                                  fontWeight: "600",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Clear filters
+                              </button>
+                            )}
+                          </div>
+                        )
+                      );
+                    })()}
+
                   {(events[selectedBuilding.id] || []).length > 0 && (
                     <div className="event-search-bar">
                       <span className="event-search-icon">🔍</span>
@@ -1855,14 +2071,26 @@ const NorthCampus = () => {
                   <p className="empty-events">No events added yet.</p>
                 ) : (
                   (() => {
-                    // Filter events based on search query
-                    const filteredEvents = (
-                      events[selectedBuilding.id] || []
-                    ).filter((evt) =>
-                      evt.title
-                        .toLowerCase()
-                        .includes(eventSearchQuery.toLowerCase())
-                    );
+                    // Filter events based on search query AND color filters
+                    let filteredEvents = events[selectedBuilding.id] || [];
+
+                    // Apply search filter
+                    if (eventSearchQuery) {
+                      filteredEvents = filteredEvents.filter((evt) =>
+                        evt.title
+                          .toLowerCase()
+                          .includes(eventSearchQuery.toLowerCase())
+                      );
+                    }
+
+                    // Apply color category filter
+                    if (selectedColorFilters.length > 0) {
+                      filteredEvents = filteredEvents.filter((evt) =>
+                        selectedColorFilters.includes(
+                          evt.category || "personal"
+                        )
+                      );
+                    }
 
                     return filteredEvents.length === 0 ? (
                       <p className="empty-events">
@@ -1910,6 +2138,7 @@ const NorthCampus = () => {
                                   setEventTime(startDate);
                                   setEventEndTimeDate(endDate);
                                   setEventColor(evt.color);
+                                  setEventCategory(evt.category || "personal");
                                   setShowEventModal(true);
                                 }}
                               >
@@ -1965,8 +2194,35 @@ const NorthCampus = () => {
                         type="text"
                         placeholder="e.g., Team Meeting, Class Lecture..."
                         value={eventTitle}
-                        onChange={(e) => setEventTitle(e.target.value)}
+                        onChange={(e) => {
+                          const newTitle = e.target.value;
+                          setEventTitle(newTitle);
+
+                          // Auto-suggest category if not editing
+                          if (!editingEvent && newTitle.length > 3) {
+                            const suggested =
+                              suggestCategoryFromTitle(newTitle);
+                            setEventCategory(suggested);
+                            setEventColor(EVENT_CATEGORIES[suggested].color);
+                          }
+                        }}
                       />
+                      {!editingEvent && eventTitle.length > 3 && (
+                        <div
+                          style={{
+                            marginTop: "6px",
+                            padding: "8px 12px",
+                            background: "rgba(59, 130, 246, 0.1)",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            color: "#3B82F6",
+                            fontWeight: "500",
+                          }}
+                        >
+                          💡 Suggested: {EVENT_CATEGORIES[eventCategory].icon}{" "}
+                          {EVENT_CATEGORIES[eventCategory].label}
+                        </div>
+                      )}
                     </div>
 
                     <div className="input-group">
@@ -2016,8 +2272,65 @@ const NorthCampus = () => {
                       </div>
                     </div>
 
+                    <div className="input-group">
+                      <label className="input-label">🏷️ Event Category</label>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: "10px",
+                          marginTop: "8px",
+                        }}
+                      >
+                        {Object.entries(EVENT_CATEGORIES).map(([key, cat]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setEventCategory(key);
+                              setEventColor(cat.color);
+                            }}
+                            style={{
+                              padding: "12px 8px",
+                              borderRadius: "12px",
+                              border:
+                                eventCategory === key
+                                  ? `3px solid ${cat.color}`
+                                  : "2px solid rgba(0,0,0,0.1)",
+                              background:
+                                eventCategory === key
+                                  ? `${cat.color}15`
+                                  : "rgba(255,255,255,0.7)",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "4px",
+                              transform:
+                                eventCategory === key
+                                  ? "scale(1.05)"
+                                  : "scale(1)",
+                            }}
+                          >
+                            <span style={{ fontSize: "24px" }}>{cat.icon}</span>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color:
+                                  eventCategory === key ? cat.color : "#6b7280",
+                              }}
+                            >
+                              {cat.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="color-picker">
-                      <label>Event Color</label>
+                      <label>Custom Color (Optional)</label>
                       <input
                         type="color"
                         value={eventColor}
